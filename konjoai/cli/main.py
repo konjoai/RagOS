@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-logger = logging.getLogger("ragos")
+logger = logging.getLogger("konjoai")
 
 
 def _setup_logging(verbose: bool) -> None:
@@ -23,12 +23,12 @@ def _setup_logging(verbose: bool) -> None:
 @click.option("--verbose", "-v", is_flag=True, default=False, help="Enable debug logging.")
 @click.pass_context
 def cli(ctx: click.Context, verbose: bool) -> None:
-    """RagOS — production RAG pipeline.
+    """KonjoOS — production RAG pipeline.
 
     \b
     Quick start:
-        ragos ingest docs/
-        ragos query "What is the refund policy?"
+        konjoai ingest docs/
+        konjoai query "What is the refund policy?"
     """
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
@@ -47,14 +47,14 @@ def ingest(ctx: click.Context, path: str, strategy: str, chunk_size: int, overla
 
     \b
     Examples:
-        ragos ingest docs/
-        ragos ingest README.md --strategy sentence_window
+        konjoai ingest docs/
+        konjoai ingest README.md --strategy sentence_window
     """
-    from ragos.ingest.loaders import load_path
-    from ragos.ingest.chunkers import get_chunker
-    from ragos.embed.encoder import get_encoder
-    from ragos.store.qdrant import get_store
-    from ragos.retrieve.sparse import get_sparse_index
+    from konjoai.ingest.loaders import load_path
+    from konjoai.ingest.chunkers import get_chunker
+    from konjoai.embed.encoder import get_encoder
+    from konjoai.store.qdrant import get_store
+    from konjoai.retrieve.sparse import get_sparse_index
 
     root = Path(path)
     chunker = get_chunker(strategy, chunk_size, overlap)
@@ -106,18 +106,18 @@ def query(ctx: click.Context, question: str, top_k: int, quiet: bool) -> None:
 
     \b
     Examples:
-        ragos query "What is the refund policy?"
-        ragos query --top-k 10 "Summarize the architecture"
+        konjoai query "What is the refund policy?"
+        konjoai query --top-k 10 "Summarize the architecture"
     """
-    from ragos.retrieve.hybrid import hybrid_search
-    from ragos.retrieve.reranker import rerank
-    from ragos.generate.generator import get_generator
+    from konjoai.retrieve.hybrid import hybrid_search
+    from konjoai.retrieve.reranker import rerank
+    from konjoai.generate.generator import get_generator
 
     hybrid_results = hybrid_search(question)
     reranked = rerank(question, hybrid_results, top_k=top_k)
 
     if not reranked:
-        click.echo("No relevant documents found in the index. Run `ragos ingest` first.", err=True)
+        click.echo("No relevant documents found in the index. Run `konjoai ingest` first.", err=True)
         raise SystemExit(1)
 
     context = "\n\n---\n\n".join(r.content for r in reranked)
@@ -141,12 +141,12 @@ def query(ctx: click.Context, question: str, top_k: int, quiet: bool) -> None:
 @click.option("--reload", is_flag=True, default=False, help="Enable hot-reload (dev only).")
 @click.option("--quiet", "-q", is_flag=True, default=False)
 def serve(host: str, port: int, reload: bool, quiet: bool) -> None:
-    """Start the RagOS FastAPI server.
+    """Start the KonjoOS FastAPI server.
 
     \b
     Examples:
-        ragos serve
-        ragos serve --port 9000 --reload
+        konjoai serve
+        konjoai serve --port 9000 --reload
     """
     try:
         import uvicorn
@@ -155,10 +155,10 @@ def serve(host: str, port: int, reload: bool, quiet: bool) -> None:
         raise SystemExit(2)
 
     if not quiet:
-        click.echo(f"Starting RagOS server on http://{host}:{port} …")
+        click.echo(f"Starting KonjoOS server on http://{host}:{port} …")
 
     uvicorn.run(
-        "ragos.api.app:app",
+        "konjoai.api.app:app",
         host=host,
         port=port,
         reload=reload,
@@ -173,10 +173,10 @@ def status(quiet: bool) -> None:
 
     \b
     Example:
-        ragos status
+        konjoai status
     """
-    from ragos.store.qdrant import get_store
-    from ragos.retrieve.sparse import get_sparse_index
+    from konjoai.store.qdrant import get_store
+    from konjoai.retrieve.sparse import get_sparse_index
 
     store = get_store()
     bm25 = get_sparse_index()
@@ -185,7 +185,7 @@ def status(quiet: bool) -> None:
         click.echo(store.count())
     else:
         click.echo(f"Vector store: {store.count()} chunks indexed")
-        click.echo(f"BM25 index:   {'ready' if bm25.built else 'not built (run ragos ingest)'}")
+        click.echo(f"BM25 index:   {'ready' if bm25.built else 'not built (run konjoai ingest)'}")
 
 
 if __name__ == "__main__":

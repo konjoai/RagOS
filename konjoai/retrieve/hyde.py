@@ -20,7 +20,7 @@ import logging
 
 import numpy as np
 
-from ragos.embed.encoder import get_encoder
+from konjoai.embed.encoder import get_encoder
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ def generate_hypothesis(question: str) -> str:
         returns an empty or whitespace-only response.
     """
     # Late import avoids circular dependency: generator → config → encoder →...
-    from ragos.generate.generator import get_generator  # noqa: PLC0415
+    from konjoai.generate.generator import get_generator  # noqa: PLC0415
 
     generator = get_generator()
     prompt = _HYDE_PROMPT.format(question=question.strip())

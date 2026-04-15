@@ -1,9 +1,9 @@
-"""Unit tests for ragos.retrieve.router — classify_intent() and decompose_query()."""
+"""Unit tests for konjoai.retrieve.router — classify_intent() and decompose_query()."""
 from __future__ import annotations
 
 import pytest
 
-from ragos.retrieve.router import QueryIntent, classify_intent, decompose_query
+from konjoai.retrieve.router import QueryIntent, classify_intent, decompose_query
 
 
 # ---------------------------------------------------------------------------

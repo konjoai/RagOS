@@ -34,8 +34,8 @@ Documents (PDF/MD/HTML/code)
 ## Quickstart
 
 ```bash
-git clone https://github.com/wesleyscholl/RagOS.git
-cd RagOS
+git clone https://github.com/wesleyscholl/KonjoOS.git
+cd KonjoOS
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
@@ -47,22 +47,22 @@ cp .env.example .env
 docker compose -f docker/docker-compose.yml up qdrant -d
 
 # Ingest a directory
-ragos ingest docs/
+konjoai ingest docs/
 
 # Ask a question
-ragos query "What is the main architecture?"
+konjoai query "What is the main architecture?"
 
 # Start the API server
-ragos serve
+konjoai serve
 ```
 
 ## CLI
 
 ```
-ragos ingest <path>     Ingest files/dirs into vector store
-ragos query  <question> Retrieve and answer using indexed documents
-ragos serve             Start FastAPI server (default :8000)
-ragos status            Show collection stats
+konjoai ingest <path>     Ingest files/dirs into vector store
+konjoai query  <question> Retrieve and answer using indexed documents
+konjoai serve             Start FastAPI server (default :8000)
+konjoai status            Show collection stats
 ```
 
 ## API
@@ -74,7 +74,7 @@ ragos status            Show collection stats
 | POST   | /eval      | RAGAS evaluation over QA samples   |
 | GET    | /health    | Collection health + document count |
 
-Docs at `http://localhost:8000/docs` after `ragos serve`.
+Docs at `http://localhost:8000/docs` after `konjoai serve`.
 
 ## Configuration
 
@@ -92,10 +92,10 @@ All settings via `.env` (see `.env.example`):
 
 ## Evaluation
 
-RagOS ships RAGAS gates out of the box:
+KonjoOS ships RAGAS gates out of the box:
 
 ```bash
-ragos serve &
+konjoai serve &
 curl -s -X POST http://localhost:8000/eval \
   -H 'Content-Type: application/json' \
   -d '{"samples": [{"question": "...", "answer": "...", "contexts": ["..."], "ground_truth": "..."}]}'

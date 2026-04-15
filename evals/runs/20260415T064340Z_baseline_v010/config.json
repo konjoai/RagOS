@@ -1,0 +1,8 @@
+{
+  "run_name": "baseline_v010",
+  "n_samples": 25,
+  "corpus": "evals/corpus/eval_questions.json",
+  "mock": false,
+  "generator_backend": "unknown",
+  "timestamp": "20260415T064340Z"
+}

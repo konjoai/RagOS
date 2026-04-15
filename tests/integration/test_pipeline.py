@@ -13,12 +13,13 @@ import numpy as np
 import pytest
 from unittest.mock import MagicMock, patch
 
-import ragos.embed.encoder as enc_module
-import ragos.store.qdrant as store_module
-import ragos.generate.generator as gen_module
-import ragos.retrieve.sparse as sparse_module
-from ragos.store.qdrant import SearchResult
-from ragos.generate.generator import GenerationResult
+import konjoai.embed.encoder as enc_module
+import konjoai.store.qdrant as store_module
+import konjoai.generate.generator as gen_module
+import konjoai.retrieve.sparse as sparse_module
+import konjoai.retrieve.reranker as reranker_module
+from konjoai.store.qdrant import SearchResult
+from konjoai.generate.generator import GenerationResult
 
 
 # ---------------------------------------------------------------------------
@@ -43,11 +44,13 @@ def _reset_singletons():
     store_module._store = None
     gen_module._generator = None
     sparse_module._bm25_index = None
+    reranker_module._reranker = None
     yield
     enc_module._encoder = None
     store_module._store = None
     gen_module._generator = None
     sparse_module._bm25_index = None
+    reranker_module._reranker = None
 
 
 @pytest.fixture()
@@ -67,8 +70,8 @@ def mock_encoder(monkeypatch):
 
     mock.encode.side_effect = fake_encode
     mock.encode_query.side_effect = fake_encode_query
-    monkeypatch.setattr("ragos.embed.encoder._encoder", mock)
-    monkeypatch.setattr("ragos.retrieve.dense._encoder", None, raising=False)
+    monkeypatch.setattr("konjoai.embed.encoder._encoder", mock)
+    monkeypatch.setattr("konjoai.retrieve.dense._encoder", None, raising=False)
     return mock
 
 
@@ -80,8 +83,8 @@ def mock_store(monkeypatch):
         SearchResult(id="2", score=0.88, content=CONTENT_B, source="shipping.md", metadata={}),
     ]
     mock.count.return_value = 2
-    monkeypatch.setattr("ragos.store.qdrant._store", mock)
-    monkeypatch.setattr("ragos.retrieve.dense._store", None, raising=False)
+    monkeypatch.setattr("konjoai.store.qdrant._store", mock)
+    monkeypatch.setattr("konjoai.retrieve.dense._store", None, raising=False)
     return mock
 
 
@@ -93,7 +96,19 @@ def mock_generator(monkeypatch):
         model="gpt-4o-mini",
         usage={"prompt_tokens": 100, "completion_tokens": 20},
     )
-    monkeypatch.setattr("ragos.generate.generator._generator", mock)
+    monkeypatch.setattr("konjoai.generate.generator._generator", mock)
+    return mock
+
+
+@pytest.fixture()
+def mock_reranker(monkeypatch):
+    """Mock CrossEncoderReranker singleton to avoid network model download in CI."""
+    mock = MagicMock()
+    # .rerank() returns [(original_index, score)] sorted best-first
+    mock.rerank.side_effect = lambda query, passages, top_k=5: [
+        (i, float(len(passages) - i)) for i in range(min(top_k, len(passages)))
+    ]
+    monkeypatch.setattr(reranker_module, "_reranker", mock)
     return mock
 
 
@@ -102,13 +117,13 @@ def mock_generator(monkeypatch):
 # ---------------------------------------------------------------------------
 
 class TestFullPipeline:
-    def test_ingest_and_query_end_to_end(self, mock_encoder, mock_store, mock_generator):
+    def test_ingest_and_query_end_to_end(self, mock_encoder, mock_store, mock_generator, mock_reranker):
         """Ingest two documents, query, and confirm a non-empty answer is returned."""
-        from ragos.ingest.loaders import Document
-        from ragos.ingest.chunkers import RecursiveChunker
-        from ragos.retrieve.hybrid import hybrid_search
-        from ragos.retrieve.reranker import rerank
-        from ragos.generate.generator import get_generator
+        from konjoai.ingest.loaders import Document
+        from konjoai.ingest.chunkers import RecursiveChunker
+        from konjoai.retrieve.hybrid import hybrid_search
+        from konjoai.retrieve.reranker import rerank
+        from konjoai.generate.generator import get_generator
 
         docs = [
             Document(content=CONTENT_A, source="policy.md", metadata={}),
@@ -121,7 +136,7 @@ class TestFullPipeline:
         sources = [c.source for c in all_chunks]
         metas = [c.metadata for c in all_chunks]
 
-        from ragos.retrieve.sparse import get_sparse_index
+        from konjoai.retrieve.sparse import get_sparse_index
         bm25 = get_sparse_index()
         bm25.build(contents, sources, metas)
 
@@ -147,7 +162,7 @@ class TestFullPipeline:
 
     def test_query_without_ingest_degrades_gracefully(self, mock_encoder, mock_store, mock_generator):
         """BM25 not built — hybrid_search should fall back to dense-only."""
-        from ragos.retrieve.hybrid import hybrid_search
+        from konjoai.retrieve.hybrid import hybrid_search
 
         # BM25 index not built; hybrid_search must not raise
         results = hybrid_search("anything")
@@ -155,7 +170,7 @@ class TestFullPipeline:
 
     def test_bm25_standalone(self):
         """BM25 index correctly ranks a matching document higher."""
-        from ragos.retrieve.sparse import BM25Index
+        from konjoai.retrieve.sparse import BM25Index
 
         idx = BM25Index()
         idx.build(

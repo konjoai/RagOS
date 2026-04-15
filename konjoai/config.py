@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     # ── Qdrant ────────────────────────────────────────────────────────────────
     qdrant_url: str = Field("http://localhost:6333")
     qdrant_api_key: str | None = None
-    qdrant_collection: str = "ragos"
+    qdrant_collection: str = "konjoai"
 
     # ── Embedding ─────────────────────────────────────────────────────────────
     embed_model: str = "sentence-transformers/all-MiniLM-L6-v2"

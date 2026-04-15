@@ -1,4 +1,4 @@
-# RagOS — Master Execution Plan
+# KonjoOS — Master Execution Plan
 
 > **ቆንጆ** — Beautiful. **根性** — Fighting spirit. **康宙** — Health of the universe.
 > *Make it konjo — build, ship, repeat.*
@@ -11,7 +11,7 @@
 
 ## Thesis
 
-RagOS is not another RAG tutorial. It is a production-grade, vertically-integrated retrieval system that demonstrates three things simultaneously:
+KonjoOS is not another RAG tutorial. It is a production-grade, vertically-integrated retrieval system that demonstrates three things simultaneously:
 
 1. **Systems engineering:** A pipeline with telemetry, routing, and graceful degradation — built like production software, not notebooks.
 2. **Research implementation:** HyDE (Gao et al. 2022), Late Interaction (ColBERT), and query routing implemented from algorithm description, not copy-pasted from a library.
@@ -70,13 +70,13 @@ QueryResponse(answer, sources, model, usage)
 
 | Component | File | Status | Priority |
 |---|---|---|---|
-| Pipeline telemetry | `ragos/telemetry.py` | ❌ Missing | P0 — enables profiling everything else |
-| Query intent router | `ragos/retrieve/router.py` | ❌ Missing | P0 — eliminates wasted Qdrant calls |
-| HyDE retrieval mode | `ragos/retrieve/hyde.py` | ❌ Missing | P1 — closes embedding mismatch gap |
-| Vectro bridge | `ragos/embed/vectro_bridge.py` | ❌ Missing | P1 — vertical integration demo |
-| Config expansion | `ragos/config.py` | ❌ 5 keys missing | P0 — gating all above |
-| Schema expansion | `ragos/api/schemas.py` | ❌ 3 fields missing | P0 — surface telemetry + intent |
-| Query route rewrite | `ragos/api/routes/query.py` | ❌ Not wired | P0 — wire all components |
+| Pipeline telemetry | `konjoai/telemetry.py` | ❌ Missing | P0 — enables profiling everything else |
+| Query intent router | `konjoai/retrieve/router.py` | ❌ Missing | P0 — eliminates wasted Qdrant calls |
+| HyDE retrieval mode | `konjoai/retrieve/hyde.py` | ❌ Missing | P1 — closes embedding mismatch gap |
+| Vectro bridge | `konjoai/embed/vectro_bridge.py` | ❌ Missing | P1 — vertical integration demo |
+| Config expansion | `konjoai/config.py` | ❌ 5 keys missing | P0 — gating all above |
+| Schema expansion | `konjoai/api/schemas.py` | ❌ 3 fields missing | P0 — surface telemetry + intent |
+| Query route rewrite | `konjoai/api/routes/query.py` | ❌ Not wired | P0 — wire all components |
 
 ---
 
@@ -126,11 +126,11 @@ QueryResponse(
 
 | Deliverable | File | Gate |
 |---|---|---|
-| PipelineTelemetry | `ragos/telemetry.py` | `pytest tests/test_telemetry.py` passes |
-| QueryIntent router | `ragos/retrieve/router.py` | CHAT → early return verified |
-| Config expansion | `ragos/config.py` | 5 new settings with defaults |
-| Schema expansion | `ragos/api/schemas.py` | 3 new fields |
-| Wired query route | `ragos/api/routes/query.py` | Full 5-step pipeline |
+| PipelineTelemetry | `konjoai/telemetry.py` | `pytest tests/test_telemetry.py` passes |
+| QueryIntent router | `konjoai/retrieve/router.py` | CHAT → early return verified |
+| Config expansion | `konjoai/config.py` | 5 new settings with defaults |
+| Schema expansion | `konjoai/api/schemas.py` | 3 new fields |
+| Wired query route | `konjoai/api/routes/query.py` | Full 5-step pipeline |
 | Baseline RAGAS run | `evals/runs/baseline_v010/` | Faithfulness measured |
 
 **Verify Gate:** `pytest tests/ --timeout=60 -x -q` — zero failures.
@@ -143,8 +143,8 @@ QueryResponse(
 
 | Deliverable | File | Gate |
 |---|---|---|
-| HyDE implementation | `ragos/retrieve/hyde.py` | `pytest tests/test_hyde.py` passes |
-| `use_hyde` field wired | `ragos/api/routes/query.py` | `use_hyde=True` returns `telemetry.steps["hyde"]` |
+| HyDE implementation | `konjoai/retrieve/hyde.py` | `pytest tests/test_hyde.py` passes |
+| `use_hyde` field wired | `konjoai/api/routes/query.py` | `use_hyde=True` returns `telemetry.steps["hyde"]` |
 | HyDE vs baseline eval | `evals/runs/v020_hyde_vs_baseline/` | Δ faithfulness documented |
 
 **Verify Gate:** RAGAS Faithfulness ≥ 0.80 OR a documented analysis of why the dataset limits HyDE gains.
@@ -157,10 +157,10 @@ QueryResponse(
 
 | Deliverable | File | Gate |
 |---|---|---|
-| Vectro bridge | `ragos/embed/vectro_bridge.py` | INT8 ratio ≥ 4×, cosine_sim ≥ 0.9999 |
+| Vectro bridge | `konjoai/embed/vectro_bridge.py` | INT8 ratio ≥ 4×, cosine_sim ≥ 0.9999 |
 | Float32 passthrough fallback | same | `_check_vectro() = False` → passthrough |
 | Vectro benchmark | `evals/benchmarks/vectro_compression.json` | ratio + sim logged |
-| `vectro_quantize` flag wired | `ragos/embed/encoder.py` or ingest | Metrics in telemetry |
+| `vectro_quantize` flag wired | `konjoai/embed/encoder.py` or ingest | Metrics in telemetry |
 
 **Verify Gate:** `pytest tests/test_vectro_bridge.py` passes. Compression ratios logged and archived in `benchmarks/results/`.
 
@@ -172,8 +172,8 @@ QueryResponse(
 
 | Deliverable | File | Gate |
 |---|---|---|
-| MaxSim implementation | `ragos/retrieve/late_interaction.py` | Shape contracts: `(Q, D) × (K, S, D) → (K,)` |
-| `use_colbert` flag | `ragos/config.py`, query route | Optional scoring pass |
+| MaxSim implementation | `konjoai/retrieve/late_interaction.py` | Shape contracts: `(Q, D) × (K, S, D) → (K,)` |
+| `use_colbert` flag | `konjoai/config.py`, query route | Optional scoring pass |
 | Full eval suite | `evals/runs/v030_final/` | Context Precision ≥ 0.75 |
 | README final | `README.md` | Architecture diagram, benchmark table, one-command demo |
 | Blog post draft | `docs/blog_post.md` | Wraps the narrative for portfolio |
@@ -185,10 +185,10 @@ QueryResponse(
 ## File Manifest (v0.2.0 additions)
 
 ```
-RagOS/
+KonjoOS/
 ├── PLAN.md                          ← this file
 ├── SESSION.md                       ← active session state tracker
-├── ragos/
+├── konjoai/
 │   ├── telemetry.py                 ← NEW: StepTiming, PipelineTelemetry, timed()
 │   ├── embed/
 │   │   └── vectro_bridge.py         ← NEW: Vectro INT8 bridge + fallback

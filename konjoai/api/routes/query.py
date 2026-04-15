@@ -4,9 +4,9 @@ import logging
 
 from fastapi import APIRouter
 
-from ragos.api.schemas import QueryRequest, QueryResponse, SourceDoc
-from ragos.config import get_settings
-from ragos.telemetry import PipelineTelemetry, timed
+from konjoai.api.schemas import QueryRequest, QueryResponse, SourceDoc
+from konjoai.config import get_settings
+from konjoai.telemetry import PipelineTelemetry, timed
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/query", tags=["query"])
@@ -23,11 +23,11 @@ def query(req: QueryRequest) -> QueryResponse:  # noqa: C901
         4. rerank      — cross-encoder reranking.
         5. generate    — LLM answer synthesis.
     """
-    from ragos.generate.generator import get_generator
-    from ragos.retrieve.hybrid import HybridResult, hybrid_search
-    from ragos.retrieve.hyde import hyde_encode
-    from ragos.retrieve.reranker import rerank
-    from ragos.retrieve.router import QueryIntent, classify_intent, decompose_query
+    from konjoai.generate.generator import get_generator
+    from konjoai.retrieve.hybrid import HybridResult, hybrid_search
+    from konjoai.retrieve.hyde import hyde_encode
+    from konjoai.retrieve.reranker import rerank
+    from konjoai.retrieve.router import QueryIntent, classify_intent, decompose_query
 
     settings = get_settings()
     tel = PipelineTelemetry()
@@ -40,7 +40,7 @@ def query(req: QueryRequest) -> QueryResponse:  # noqa: C901
 
     if intent == QueryIntent.CHAT:
         return QueryResponse(
-            answer="I'm RagOS, a retrieval-augmented generation assistant. "
+            answer="I'm KonjoOS, a retrieval-augmented generation assistant. "
                    "Ask me a question about your documents!",
             sources=[],
             model="router",

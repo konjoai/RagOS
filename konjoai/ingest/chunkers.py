@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
-from ragos.ingest.loaders import Document
+from konjoai.ingest.loaders import Document
 
 
 @dataclass

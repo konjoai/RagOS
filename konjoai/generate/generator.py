@@ -100,7 +100,7 @@ class SquishGenerator:
         except ImportError as e:
             raise ImportError("openai is required: pip install openai") from e
 
-        self._client = OpenAI(api_key="ollama", base_url=base_url)
+        self._client = OpenAI(api_key="squish", base_url=base_url)
         self._model = model
         self._max_tokens = max_tokens
 
@@ -127,7 +127,7 @@ def get_generator() -> Generator:
     if _generator is not None:
         return _generator
 
-    from ragos.config import get_settings
+    from konjoai.config import get_settings
 
     s = get_settings()
     backend = s.generator_backend.lower()
@@ -139,7 +139,7 @@ def get_generator() -> Generator:
                 "Set it in your .env file or environment, or switch to another backend:\n"
                 "  GENERATOR_BACKEND=squish"
             )
-        _generator = OpenAIGenerator(model=s.openai_model, api_key=s.openai_api_key, max_tokens=s.max_new_tokens)
+        _generator = OpenAIGenerator(model=s.openai_model, api_key=s.openai_api_key, max_tokens=s.max_tokens)
 
     elif backend == "anthropic":
         if not s.anthropic_api_key:
@@ -149,12 +149,12 @@ def get_generator() -> Generator:
                 "  GENERATOR_BACKEND=squish"
             )
         _generator = AnthropicGenerator(
-            model=s.anthropic_model, api_key=s.anthropic_api_key, max_tokens=s.max_new_tokens
+            model=s.anthropic_model, api_key=s.anthropic_api_key, max_tokens=s.max_tokens
         )
 
     elif backend == "squish":
         _generator = SquishGenerator(
-            model=s.squish_model, base_url=s.squish_base_url, max_tokens=s.max_new_tokens
+            model=s.squish_model, base_url=s.squish_base_url, max_tokens=s.max_tokens
         )
 
     else:

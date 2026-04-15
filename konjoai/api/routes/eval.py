@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from ragos.api.schemas import EvalRequest, EvalResponse
+from konjoai.api.schemas import EvalRequest, EvalResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/eval", tags=["eval"])
@@ -17,7 +17,7 @@ def run_eval(req: EvalRequest) -> EvalResponse:
         raise HTTPException(status_code=422, detail="questions list must not be empty.")
 
     try:
-        from ragos.eval.ragas_eval import evaluate
+        from konjoai.eval.ragas_eval import evaluate
     except ImportError as exc:
         raise HTTPException(status_code=501, detail=str(exc)) from exc
 

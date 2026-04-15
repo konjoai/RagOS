@@ -1,9 +1,9 @@
-# Eval Corpus — RagOS Retrieval QA
+# Eval Corpus — KonjoOS Retrieval QA
 
 ## Overview
 
 25 factoid question-answer pairs covering core RAG and information retrieval concepts.
-Used by `python -m ragos.eval.ragas_eval` to run RAGAS baseline evaluations.
+Used by `python -m konjoai.eval.ragas_eval` to run RAGAS baseline evaluations.
 
 ## Format
 
@@ -47,8 +47,8 @@ Each entry in `eval_questions.json` is:
 Run a mock evaluation (uses `ground_truth` as the answer — tests harness plumbing):
 
 ```bash
-cd /path/to/RagOS
-python -m ragos.eval.ragas_eval \
+cd /path/to/KonjoOS
+python -m konjoai.eval.ragas_eval \
   --run-name mock_upper_bound \
   --corpus evals/corpus/eval_questions.json \
   --mock
@@ -57,7 +57,7 @@ python -m ragos.eval.ragas_eval \
 Run a real evaluation against the configured generator backend:
 
 ```bash
-python -m ragos.eval.ragas_eval \
+python -m konjoai.eval.ragas_eval \
   --run-name baseline_v010 \
   --corpus evals/corpus/eval_questions.json \
   --n-samples 25
@@ -69,6 +69,6 @@ Results are written to `evals/runs/{timestamp}_{run_name}/`:
 
 ## Provenance
 
-Corpus authored by Konjo AI Research (konjo.ai) for the RagOS v0.2.0 evaluation sprint.
+Corpus authored by Konjo AI Research (konjo.ai) for the KonjoOS v0.2.0 evaluation sprint.
 Context documents are purpose-written synthetic passages covering each topic.
 Ground truth answers are manually verified.

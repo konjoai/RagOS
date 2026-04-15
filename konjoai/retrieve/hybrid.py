@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ragos.store.qdrant import SearchResult
-from ragos.retrieve.sparse import BM25Result
+from konjoai.store.qdrant import SearchResult
+from konjoai.retrieve.sparse import BM25Result
 
 
 @dataclass
@@ -67,9 +67,9 @@ def hybrid_search(
     alpha: float | None = None,
 ) -> list[HybridResult]:
     """Run dense + sparse searches then fuse with RRF."""
-    from ragos.config import get_settings
-    from ragos.retrieve.dense import dense_search
-    from ragos.retrieve.sparse import get_sparse_index
+    from konjoai.config import get_settings
+    from konjoai.retrieve.dense import dense_search
+    from konjoai.retrieve.sparse import get_sparse_index
 
     s = get_settings()
     kd = top_k_dense if top_k_dense is not None else s.top_k_dense

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ragos"
+name = "konjoai"
 version = "0.1.0"
 description = "Production RAG pipeline: hybrid retrieval, reranking, and RAGAS evaluation"
 readme = "README.md"
@@ -15,7 +15,7 @@ authors = [
 keywords = ["rag", "llm", "retrieval", "embeddings", "fastapi", "qdrant"]
 
 [project.scripts]
-ragos = "ragos.cli.main:cli"
+konjoai = "konjoai.cli.main:cli"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

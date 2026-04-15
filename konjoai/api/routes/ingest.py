@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from ragos.api.schemas import IngestRequest, IngestResponse
+from konjoai.api.schemas import IngestRequest, IngestResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ingest", tags=["ingest"])
@@ -15,11 +15,11 @@ def ingest(req: IngestRequest) -> IngestResponse:
     """Load files from *path*, chunk, embed, and upsert into Qdrant + BM25."""
     from pathlib import Path
 
-    from ragos.ingest.loaders import load_path
-    from ragos.ingest.chunkers import get_chunker
-    from ragos.embed.encoder import get_encoder
-    from ragos.store.qdrant import get_store
-    from ragos.retrieve.sparse import get_sparse_index
+    from konjoai.ingest.loaders import load_path
+    from konjoai.ingest.chunkers import get_chunker
+    from konjoai.embed.encoder import get_encoder
+    from konjoai.store.qdrant import get_store
+    from konjoai.retrieve.sparse import get_sparse_index
 
     path = Path(req.path)
     if not path.exists():

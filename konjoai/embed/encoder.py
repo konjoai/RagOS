@@ -82,7 +82,7 @@ def get_encoder() -> SentenceEncoder:
     """Return the module-level singleton encoder (lazy init)."""
     global _encoder
     if _encoder is None:
-        from ragos.config import get_settings
+        from konjoai.config import get_settings
 
         s = get_settings()
         _encoder = SentenceEncoder(

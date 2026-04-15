@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import numpy as np
 
-from ragos.store.qdrant import SearchResult, get_store
-from ragos.embed.encoder import get_encoder
+from konjoai.store.qdrant import SearchResult, get_store
+from konjoai.embed.encoder import get_encoder
 
 
 def dense_search(query: str, top_k: int | None = None) -> list[SearchResult]:
     """Embed *query* and return the top-*k* closest chunks from Qdrant."""
-    from ragos.config import get_settings
+    from konjoai.config import get_settings
 
     k = top_k if top_k is not None else get_settings().top_k_dense
     encoder = get_encoder()

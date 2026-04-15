@@ -3,7 +3,7 @@ version: "3.9"
 services:
   qdrant:
     image: qdrant/qdrant:v1.7.4
-    container_name: ragos-qdrant
+    container_name: konjoai-qdrant
     ports:
       - "6333:6333"
       - "6334:6334"   # gRPC
@@ -17,11 +17,11 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  ragos:
+  konjoai:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: ragos-api
+    container_name: konjoai-api
     ports:
       - "8000:8000"
     env_file:

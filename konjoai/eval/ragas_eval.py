@@ -153,7 +153,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
     parser = argparse.ArgumentParser(
-        description="Run RAGAS evaluation against RagOS corpus.",
+        description="Run RAGAS evaluation against KonjoOS corpus.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--run-name", required=True, help="Label for this eval run (used in output directory)")
@@ -184,7 +184,7 @@ if __name__ == "__main__":
     _llm_base_url: str | None = None
     _llm_model: str = "gpt-4o-mini"
     try:
-        from ragos.config import get_settings
+        from konjoai.config import get_settings
         _s = get_settings()
         _llm_model = _s.ragas_llm
         if _s.generator_backend == "squish":
@@ -204,7 +204,7 @@ if __name__ == "__main__":
         answers: list[str] = ground_truths
         logger.info("--mock mode: using ground_truths as answers (upper-bound, harness only)")
     else:
-        from ragos.generate.generator import get_generator
+        from konjoai.generate.generator import get_generator
         _gen = get_generator()
         answers = []
         for _item in corpus:

@@ -42,7 +42,7 @@ def get_reranker() -> CrossEncoderReranker:
     """Return the module-level singleton reranker (lazy init)."""
     global _reranker
     if _reranker is None:
-        from ragos.config import get_settings
+        from konjoai.config import get_settings
 
         s = get_settings()
         _reranker = CrossEncoderReranker(model_name=s.reranker_model)
@@ -61,7 +61,7 @@ def rerank(query: str, candidates: list, top_k: int | None = None) -> list[Reran
     top_k:
         Number of results to return (default: ``settings.top_k_rerank``).
     """
-    from ragos.config import get_settings
+    from konjoai.config import get_settings
 
     k = top_k if top_k is not None else get_settings().top_k_rerank
     reranker = get_reranker()

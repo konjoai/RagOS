@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 from unittest.mock import MagicMock, patch
 
-import ragos.embed.encoder as enc_module
-from ragos.embed.encoder import SentenceEncoder
+import konjoai.embed.encoder as enc_module
+from konjoai.embed.encoder import SentenceEncoder
 
 
 # ---------------------------------------------------------------------------
@@ -26,7 +26,7 @@ def mock_st(monkeypatch) -> MagicMock:
 
     mock.get_sentence_embedding_dimension.return_value = dim
     mock.encode = fake_encode
-    monkeypatch.setattr("ragos.embed.encoder.SentenceTransformer", lambda *a, **kw: mock)
+    monkeypatch.setattr("konjoai.embed.encoder.SentenceTransformer", lambda *a, **kw: mock)
     # reset singleton between tests
     enc_module._encoder = None
     yield mock

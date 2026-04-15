@@ -7,8 +7,8 @@ import logging
 
 from fastapi import FastAPI
 
-from ragos.api.routes import ingest, query, eval as eval_route
-from ragos.api.schemas import HealthResponse
+from konjoai.api.routes import ingest, query, eval as eval_route
+from konjoai.api.schemas import HealthResponse
 
 logger = logging.getLogger(__name__)
 
@@ -16,19 +16,19 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Warm up the encoder and vector store on startup."""
-    logger.info("RagOS API starting — warming up encoder and store…")
-    from ragos.embed.encoder import get_encoder
-    from ragos.store.qdrant import get_store
+    logger.info("KonjoOS API starting — warming up encoder and store…")
+    from konjoai.embed.encoder import get_encoder
+    from konjoai.store.qdrant import get_store
 
     get_encoder()
     get_store()
-    logger.info("RagOS API ready.")
+    logger.info("KonjoOS API ready.")
     yield
-    logger.info("RagOS API shutting down.")
+    logger.info("KonjoOS API shutting down.")
 
 
 app = FastAPI(
-    title="RagOS",
+    title="KonjoOS",
     description="Production RAG pipeline — ingest, query, evaluate.",
     version="0.1.0",
     lifespan=lifespan,
@@ -41,8 +41,8 @@ app.include_router(eval_route.router)
 
 @app.get("/health", response_model=HealthResponse, tags=["health"])
 def health() -> HealthResponse:
-    from ragos.store.qdrant import get_store
-    from ragos.retrieve.sparse import get_sparse_index
+    from konjoai.store.qdrant import get_store
+    from konjoai.retrieve.sparse import get_sparse_index
 
     return HealthResponse(
         status="ok",

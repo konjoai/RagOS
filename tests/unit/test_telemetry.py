@@ -1,11 +1,11 @@
-"""Unit tests for ragos.telemetry — StepTiming, PipelineTelemetry, timed()."""
+"""Unit tests for konjoai.telemetry — StepTiming, PipelineTelemetry, timed()."""
 from __future__ import annotations
 
 import time
 
 import pytest
 
-from ragos.telemetry import PipelineTelemetry, StepTiming, timed
+from konjoai.telemetry import PipelineTelemetry, StepTiming, timed
 
 
 # ---------------------------------------------------------------------------

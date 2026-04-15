@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from ragos.retrieve.hybrid import reciprocal_rank_fusion, HybridResult
-from ragos.retrieve.sparse import BM25Index
-from ragos.store.qdrant import SearchResult
+from konjoai.retrieve.hybrid import reciprocal_rank_fusion, HybridResult
+from konjoai.retrieve.sparse import BM25Index
+from konjoai.store.qdrant import SearchResult
 
 
 # ---------------------------------------------------------------------------
@@ -16,7 +16,7 @@ def _sr(content: str, score: float = 1.0) -> SearchResult:
 
 
 def _bm25r(content: str, score: float = 1.0):
-    from ragos.retrieve.sparse import BM25Result
+    from konjoai.retrieve.sparse import BM25Result
     return BM25Result(score=score, content=content, source="s", metadata={})
 
 

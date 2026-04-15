@@ -66,10 +66,10 @@ class QdrantStore:
         n = len(contents)
         assert embeddings.shape[0] == n == len(sources) == len(metadatas)
 
-        from ragos.config import get_settings  # noqa: PLC0415
+        from konjoai.config import get_settings  # noqa: PLC0415
         _s = get_settings()
         if getattr(_s, "vectro_quantize", False):
-            from ragos.embed.vectro_bridge import quantize_for_storage  # noqa: PLC0415
+            from konjoai.embed.vectro_bridge import quantize_for_storage  # noqa: PLC0415
             embeddings, _vectro_metrics = quantize_for_storage(embeddings)
             logger.info("Vectro quantization metrics: %s", _vectro_metrics)
 
@@ -122,8 +122,8 @@ def get_store() -> QdrantStore:
     """Return the module-level singleton store (lazy init)."""
     global _store
     if _store is None:
-        from ragos.config import get_settings
-        from ragos.embed.encoder import get_encoder
+        from konjoai.config import get_settings
+        from konjoai.embed.encoder import get_encoder
 
         s = get_settings()
         _store = QdrantStore(

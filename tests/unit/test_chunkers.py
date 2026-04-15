@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from ragos.ingest.chunkers import RecursiveChunker, SentenceWindowChunker, get_chunker
-from ragos.ingest.loaders import Document
+from konjoai.ingest.chunkers import RecursiveChunker, SentenceWindowChunker, get_chunker
+from konjoai.ingest.loaders import Document
 
 
 def _doc(text: str, source: str = "test.md") -> Document:
