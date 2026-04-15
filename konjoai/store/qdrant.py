@@ -47,7 +47,7 @@ class QdrantStore:
         else:
             logger.info("QdrantStore: using existing collection '%s'", collection)
 
-    def upsert(self, embeddings: np.ndarray, contents: list[str], sources: list[str], metadatas: list[dict]) -> None:
+    def upsert(self, embeddings: np.ndarray, contents: list[str], sources: list[str], metadatas: list[dict]) -> dict | None:
         """Upsert a batch of chunks into the collection.
 
         Parameters
@@ -68,6 +68,7 @@ class QdrantStore:
 
         from konjoai.config import get_settings  # noqa: PLC0415
         _s = get_settings()
+        _vectro_metrics: dict | None = None
         if getattr(_s, "vectro_quantize", False):
             from konjoai.embed.vectro_bridge import quantize_for_storage  # noqa: PLC0415
             embeddings, _vectro_metrics = quantize_for_storage(embeddings)
@@ -85,6 +86,7 @@ class QdrantStore:
         ]
         self._client.upsert(collection_name=self._collection, points=points, wait=True)
         logger.debug("QdrantStore: upserted %d points", n)
+        return _vectro_metrics
 
     def search(self, query_vector: np.ndarray, top_k: int = 20) -> list[SearchResult]:
         """Dense cosine search.

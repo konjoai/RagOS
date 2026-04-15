@@ -1,0 +1,13 @@
+{
+  "name": "vectro_compression",
+  "description": "Gate: INT8 compression_ratio >= 4.0, mean_cosine_similarity >= 0.9999 (from vectro_bridge live validation 2026-03-26).",
+  "gates": {
+    "compression_ratio_min": 4.0,
+    "mean_cosine_similarity_min": 0.9999
+  },
+  "n_vectors": 10000,
+  "dims": 384,
+  "format": "int8",
+  "hardware": "M3 16GB",
+  "notes": "Run via: python -m pytest tests/unit/test_vectro_pipeline_service.py -k benchmark. INT8 is the production baseline. NF4 target: mean_cosine_similarity >= 0.98. PQ-96 target: recall@10 >= 0.95."
+}

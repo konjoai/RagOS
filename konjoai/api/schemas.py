@@ -15,6 +15,35 @@ class IngestRequest(BaseModel):
 class IngestResponse(BaseModel):
     chunks_indexed: int
     sources_processed: int
+    vectro_metrics: dict | None = None  # K6: None when vectro_quantize=False
+
+
+# ── Vectro pipeline ──────────────────────────────────────────────────────────
+
+class VectroPipelineRequest(BaseModel):
+    """Request body for POST /vectro/pipeline."""
+    input_jsonl: str = Field(..., description="Path to JSONL file.  Each line: {'id': str, 'vector': [f32]}")
+    out_dir: str | None = Field(None, description="Output directory.  Defaults to a tempdir.")
+    format: str = Field("nf4", pattern="^(nf4|pq|int8|rq|auto)$",
+                        description="Quantization format.  rq/auto are stubs until vectro_lib v5.0.")
+    m: int = Field(16, ge=4, le=64, description="HNSW M parameter.")
+    ef_construction: int = Field(200, ge=10, description="HNSW construction beam width.")
+    ef_search: int = Field(50, ge=10, description="HNSW search beam width.")
+    query_file: str | None = Field(None, description="Optional JSONL query file for evaluation.")
+    top_k: int = Field(10, ge=1, le=100, description="Nearest neighbours per query.")
+    archive: bool = Field(False, description="Archive result to evals/runs/ (K7).")
+
+
+class VectroPipelineResponse(BaseModel):
+    """Response from POST /vectro/pipeline."""
+    n_vectors: int
+    dims: int
+    format: str
+    out_dir: str
+    index_size_bytes: int
+    duration_ms: float
+    query_results: list[dict] = Field(default_factory=list)
+    binary_path: str = ""
 
 
 # ── Query ────────────────────────────────────────────────────────────────────

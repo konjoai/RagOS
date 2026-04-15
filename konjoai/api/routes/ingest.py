@@ -45,10 +45,14 @@ def ingest(req: IngestRequest) -> IngestResponse:
         raise HTTPException(status_code=422, detail="No content found at the given path.")
 
     embeddings = encoder.encode(all_contents)
-    store.upsert(embeddings, all_contents, all_sources, all_metadatas)
+    vectro_metrics = store.upsert(embeddings, all_contents, all_sources, all_metadatas)
 
     bm25 = get_sparse_index()
     bm25.build(all_contents, all_sources, all_metadatas)
 
     logger.info("Ingested %d chunks from %d sources", len(all_contents), len(sources_seen))
-    return IngestResponse(chunks_indexed=len(all_contents), sources_processed=len(sources_seen))
+    return IngestResponse(
+        chunks_indexed=len(all_contents),
+        sources_processed=len(sources_seen),
+        vectro_metrics=vectro_metrics,
+    )
