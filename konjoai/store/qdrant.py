@@ -119,6 +119,41 @@ class QdrantStore:
         """Return the number of points in the collection."""
         return self._client.count(collection_name=self._collection).count
 
+    def scroll_all(
+        self, batch_size: int = 256
+    ) -> tuple["np.ndarray", list[str], list[str], list[str]]:
+        """Scroll through every point in the collection.
+
+        Returns
+        -------
+        tuple of (vectors float32 (N, dim), texts, sources, ids)
+
+        Used by :class:`konjoai.retrieve.vectro_retriever.VectroRetrieverAdapter`
+        to build an in-memory corpus for Vectro SIMD hybrid search.
+        """
+        vecs, texts, sources, ids = [], [], [], []
+        offset = None
+        while True:
+            result, next_offset = self._client.scroll(
+                collection_name=self._collection,
+                limit=batch_size,
+                with_vectors=True,
+                with_payload=True,
+                offset=offset,
+            )
+            for pt in result:
+                vecs.append(pt.vector)
+                texts.append(pt.payload.get("content", ""))
+                sources.append(pt.payload.get("source", ""))
+                ids.append(str(pt.id))
+            if next_offset is None:
+                break
+            offset = next_offset
+
+        if vecs:
+            return np.array(vecs, dtype=np.float32), texts, sources, ids
+        return np.empty((0, self._dim), dtype=np.float32), [], [], []
+
 
 def get_store() -> QdrantStore:
     """Return the module-level singleton store (lazy init)."""

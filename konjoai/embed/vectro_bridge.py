@@ -1,19 +1,16 @@
 """Vectro integration bridge for embedding quantization.
 
-This module provides a graceful-degradation wrapper around the Vectro library
-(Mojo-first INT8/INT4/NF4 embedding compression, 12.5M+ vec/s on M3 Silicon).
+Graceful-degradation wrapper around the Vectro library (Mojo-first INT8/INT4/NF4
+embedding compression, 12.5M+ vec/s on M3 Silicon).
 
-If Vectro is not installed the module works identically but returns float32
-passthrough vectors instead of quantized reconstructions.  This satisfies K3
-(graceful degradation) — the pipeline is fully functional without Vectro; Vectro
-adds measurable compression telemetry that demonstrates the portfolio integration.
+Import strategy (tried in order):
+    1. ``vectro.python.interface`` — available when Vectro is pip-installed
+       (``pip install -e ~/vectro``).
+    2. Path-injected fallback — inserts ``~/vectro`` onto sys.path so the
+       package resolves without a prior ``pip install``.
+    3. Passthrough — float32 vectors returned unchanged; K3 (graceful degradation).
 
-Primary use-cases:
-    1. Pre-compute compression metrics (ratio, cosine similarity) before upsert.
-    2. Benchmark Vectro throughput as a pipeline step timed with timed().
-    3. Return dequantized float32 vectors for Qdrant (which requires float32).
-
-Vectro API reference (from vectro.python.interface):
+Vectro API contract (vectro.python.interface):
     quantize_embeddings(embeddings: np.ndarray) -> QuantizationResult
         QuantizationResult.quantized: np.int8 (n, d)
         QuantizationResult.scales:    np.float32 (n,)
@@ -23,8 +20,8 @@ Vectro API reference (from vectro.python.interface):
 from __future__ import annotations
 
 import logging
-import os
 import sys
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -32,13 +29,13 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Path registration — vectro is a namespace package under ~/vectro/.
-# Inserting ~ onto sys.path lets Python resolve vectro.python.interface
-# without a separate pip install step.
+# Path registration — try pip-installed first; fall back to source tree.
+# We insert ~/vectro (not ~) to scope the path addition to Vectro only.
 # ---------------------------------------------------------------------------
-_home = os.path.expanduser("~")
-if _home not in sys.path:
-    sys.path.insert(0, _home)
+_VECTRO_SRC = Path.home() / "vectro"
+_VECTRO_SRC_STR = str(_VECTRO_SRC)
+if _VECTRO_SRC.is_dir() and _VECTRO_SRC_STR not in sys.path:
+    sys.path.insert(0, _VECTRO_SRC_STR)
 
 # ---------------------------------------------------------------------------
 # Availability probe (cached after first call)

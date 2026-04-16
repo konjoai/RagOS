@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     vectro_quantize: bool = False        # quantize embeddings with Vectro before upsert
     vectro_method: str = "int8"          # "int8" | "int4"
 
+    # ── Vectro Retriever ──────────────────────────────────────────────────────
+    use_vectro_retriever: bool = False   # replace konjo-core BM25+dense with VectroRetriever
+    vectro_retriever_alpha: float = 0.7  # dense weight for VectroRetriever fusion
+    bm25_persist_path: str | None = None # if set, BM25 index is saved/loaded at this path
+
     # ── Generation ────────────────────────────────────────────────────────────
     generator_backend: str = "openai"  # "squish" | "openai" | "anthropic"
     openai_api_key: str | None = None

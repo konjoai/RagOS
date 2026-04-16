@@ -66,7 +66,13 @@ def hybrid_search(
     top_k_sparse: int | None = None,
     alpha: float | None = None,
 ) -> list[HybridResult]:
-    """Run dense + sparse searches then fuse with RRF."""
+    """Run dense + sparse searches then fuse with RRF.
+
+    If ``use_vectro_retriever`` is enabled in :class:`konjoai.config.Settings`,
+    delegates to :class:`konjoai.retrieve.vectro_retriever.VectroRetrieverAdapter`
+    which uses Vectro's SIMD-accelerated in-memory hybrid search when
+    ``vectro_py`` Rust bindings are available, or a numpy fallback otherwise.
+    """
     from konjoai.config import get_settings
     from konjoai.retrieve.dense import dense_search
     from konjoai.retrieve.sparse import get_sparse_index
@@ -75,6 +81,10 @@ def hybrid_search(
     kd = top_k_dense if top_k_dense is not None else s.top_k_dense
     ks = top_k_sparse if top_k_sparse is not None else s.top_k_sparse
     a = alpha if alpha is not None else s.hybrid_alpha
+
+    if getattr(s, "use_vectro_retriever", False):
+        from konjoai.retrieve.vectro_retriever import get_vectro_retriever
+        return get_vectro_retriever().search(query, top_k=max(kd, ks))
 
     dense_results = dense_search(query, top_k=kd)
 

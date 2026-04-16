@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import pickle
 from dataclasses import dataclass
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +19,14 @@ class BM25Result:
 
 
 class BM25Index:
-    """In-memory BM25 index backed by rank-bm25.BM25Okapi."""
+    """In-memory BM25 index backed by rank-bm25.BM25Okapi.
+
+    Persistence
+    -----------
+    Call :meth:`save` after :meth:`build` to write the index to disk.
+    Call :meth:`load` to restore it; skip a re-build on startup.
+    The pickle file contains the tokenised corpus and BM25Okapi object.
+    """
 
     def __init__(self, k1: float = 1.5, b: float = 0.75) -> None:
         self._k1 = k1
@@ -44,6 +53,53 @@ class BM25Index:
         self._bm25 = BM25Okapi(tokenised, k1=self._k1, b=self._b)
         logger.info("BM25Index: built on %d documents", len(contents))
 
+    def save(self, path: str | Path) -> None:
+        """Persist the index to *path* (pickle).
+
+        Saves the corpus, sources, metadatas, BM25 object, and k1/b parameters.
+        Raises ``RuntimeError`` if the index has not been built yet.
+        """
+        if self._bm25 is None:
+            raise RuntimeError("BM25Index.build() must be called before save()")
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "corpus": self._corpus,
+            "sources": self._sources,
+            "metadatas": self._metadatas,
+            "bm25": self._bm25,
+            "k1": self._k1,
+            "b": self._b,
+        }
+        with p.open("wb") as f:
+            pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
+        logger.info("BM25Index: saved %d docs to %s", len(self._corpus), path)
+
+    def load(self, path: str | Path) -> bool:
+        """Restore the index from a previously saved pickle.
+
+        Returns ``True`` on success, ``False`` if the file does not exist or
+        is unreadable (caller should fall back to rebuild).
+        """
+        p = Path(path)
+        if not p.exists():
+            logger.debug("BM25Index: no saved index at %s", path)
+            return False
+        try:
+            with p.open("rb") as f:
+                payload = pickle.load(f)  # noqa: S301  # trusted local file
+            self._corpus = payload["corpus"]
+            self._sources = payload["sources"]
+            self._metadatas = payload["metadatas"]
+            self._bm25 = payload["bm25"]
+            self._k1 = payload["k1"]
+            self._b = payload["b"]
+            logger.info("BM25Index: loaded %d docs from %s", len(self._corpus), path)
+            return True
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("BM25Index: failed to load from %s: %s", path, exc)
+            return False
+
     def search(self, query: str, top_k: int = 20) -> list[BM25Result]:
         if self._bm25 is None:
             raise RuntimeError("BM25Index.build() must be called before search()")
@@ -69,8 +125,19 @@ class BM25Index:
 
 
 def get_sparse_index() -> BM25Index:
-    """Return the module-level singleton BM25 index (not auto-built; call .build() first)."""
+    """Return the module-level singleton BM25 index.
+
+    If ``bm25_persist_path`` is configured in :class:`konjoai.config.Settings`
+    and a saved index file exists, the index is loaded automatically.
+    """
     global _index
     if _index is None:
         _index = BM25Index()
+        try:
+            from konjoai.config import get_settings
+            path = get_settings().bm25_persist_path
+            if path:
+                _index.load(path)
+        except Exception:  # noqa: BLE001
+            pass  # config unavailable during testing — leave index empty
     return _index
