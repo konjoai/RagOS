@@ -3,13 +3,13 @@
 > **ቆንጆ** — Beautiful. **根性** — Fighting spirit. **康宙** — Health of the universe. **खोजो** — Search and discover.
 > *Make it konjo — build, ship, rest, repeat.*
 
-This file defines standing instructions for all AI and human contributors working on `konjo-core` (formerly KonjoOS). Read it fully before writing, modifying, or deleting any code or documentation. These are not suggestions; they are the architectural laws of the frontier.
+This file defines standing instructions for all AI and human contributors working on `kyro` (formerly konjo-core & KonjoOS). Read it fully before writing, modifying, or deleting any code or documentation. These are not suggestions; they are the architectural laws of the frontier.
 
 ---
 
-## 🚀 The Flagship Platform: `konjo-core`
+## 🚀 The Flagship Platform: `kyro`
 
-`konjo-core` is our flagship AI platform and the central nervous system of our architecture. We do not build monolithic bloat; we build an elegant core. Every capability is designed as a high-performance engine that plugs directly into `konjo-core`:
+`kyro` is our flagship AI platform and the central nervous system of our architecture. We do not build monolithic bloat; we build an elegant core. Every capability is designed as a high-performance engine that plugs directly into `kyro`:
 
 * **Vectro:** The retrieval engine. (Optimized for ultra-low latency vector operations and semantic search).
 * **Squish:** The inference engine. (The hot path for model execution, hardware acceleration, and token generation).
@@ -18,7 +18,7 @@ This file defines standing instructions for all AI and human contributors workin
 * **NanoTune:** The fine-tuning module. (Manages precise, efficient parameter updates and alignment processes).
 * **DREX:** The research foundation. (The bleeding-edge architecture driving continuous learning, dynamic routing, and episodic memory).
 
-When modifying any of these systems, you must maintain absolute strictness regarding their interfaces with `konjo-core`. 
+When modifying any of these systems, you must maintain absolute strictness regarding their interfaces with `kyro`. 
 
 ---
 
@@ -44,7 +44,7 @@ Our macro-cycle pairs with a rigorous micro-cycle: **Think, Plan, Execute, Verif
 
 ## 🗂️ Planning First: Think, Plan, Execute, Verify
 
-* **Think:** Analyze the problem from first principles. Do not reach for off-the-shelf paradigms if they limit the potential of `konjo-core` or its plugins.
+* **Think:** Analyze the problem from first principles. Do not reach for off-the-shelf paradigms if they limit the potential of `kyro` or its plugins.
 * **Plan:** Always read `docs/planning/PLAN.md`, `ROADMAP.md`, or the equivalent planning document before starting. For DREX, always read `DREX_UNIFIED_SPEC.md` first. If no plan exists, create one before proceeding and ask for confirmation.
 * **Execute:** Implement the change. If a task deviates from the current plan, call it out explicitly before continuing. Do not ask multiple clarifying questions at once; ask one focused question.
 * **Verify:** After completing work, update `PLAN.md`, `ROADMAP.md`, `README.md`, and all relevant docs. Before implementing any change that touches more than two files or the inference hot path (Squish), explicitly state your understanding of the current behavior, execute the tests, and confirm the metrics.
@@ -77,12 +77,28 @@ Our macro-cycle pairs with a rigorous micro-cycle: **Think, Plan, Execute, Verif
 * **Correctness is the floor, not the ceiling.** The ceiling is: correct, fast, efficient, elegant, and novel. Reach for the ceiling.
 * **No Hallucinated Abstractions.** Ground innovations in explicit tensor operations, raw mathematical formulations, and supported framework primitives. Verify every framework API call against official documentation. Never infer argument names or defaults from a function name alone.
 * **Prefer removal over addition.** Every new line of code must justify its existence against a simpler alternative.
+* **Documentation is always updated.** Documentation changes (README.md, PLAN.md, ROADMAP.md, CLAUDE.md-relevant sections) are required after every prompt execution, regardless of success, failure, or partial completion.
+
+---
+
+## 🔄 Version Control & Documentation Sync
+* **Documentation is mandatory per prompt cycle**: Every prompt must result in updated documentation reflecting the current state of the system, including successes, failures, partial progress, blockers, and decisions. This is not gated by Ship Gate results or test outcomes.
+* **Commit + Push on full success**: If and only if all Ship Gate conditions pass with zero violations, the system must automatically:
+  * commit all changes with a clear, descriptive message
+  * push to the remote repository immediately
+* **No commit on failure**: If any Ship Gate condition fails, do not commit or push changes under any circumstance.
+* **Failure-state documentation still required**: Even when gates fail, documentation must still be updated to reflect:
+  * what was attempted
+  * what failed
+  * root cause analysis (technical, not narrative)
+  * next corrective step
+* **No silent state changes**: Documentation must never lag behind implementation state. If the implementation changes, documentation must change in the same prompt cycle. This ensures that the documentation is always a reliable source of truth, even in failure scenarios.
 
 ---
 
 ## 🧮 Numerical Correctness & Precision
 
-* **Always be explicit about dtype at every boundary.** The canonical dtype contract across `konjo-core`: trained components and fine-tuning (NanoTune) default to `bfloat16`; states, embeddings (Vectro), and reservoirs use `float32` unless actively compressed. Dtype conversion happens explicitly at module boundaries *only*.
+* **Always be explicit about dtype at every boundary.** The canonical dtype contract across `kyro`: trained components and fine-tuning (NanoTune) default to `bfloat16`; states, embeddings (Vectro), and reservoirs use `float32` unless actively compressed. Dtype conversion happens explicitly at module boundaries *only*.
 * **Track precision loss deliberately.** When downcasting, document the expected accuracy delta and assert it in tests against a reference.
 * **NaN/Inf propagation is a silent killer.** Add assertions: `assert not (torch.isnan(x).any() or torch.isinf(x).any())`. Never ship code that masks float overflow without a logged warning.
 * **Stochastic rounding and quantization noise:** When testing quantized kernels in Squish, use deterministic seeds and compare output distributions (mean, std, max absolute error)—not just equality.
@@ -105,7 +121,7 @@ Our macro-cycle pairs with a rigorous micro-cycle: **Think, Plan, Execute, Verif
 * **100% test coverage is the floor.** Every `src/` file must have a corresponding test file in `tests/python/`.
 * **Test taxonomy:**
     1.  **Pure unit:** No I/O, no state mutation. Deterministic.
-    2.  **Integration:** Tests plugin boundaries across `konjo-core`. Must clean up temp files.
+    2.  **Integration:** Tests plugin boundaries across `kyro`. Must clean up temp files.
     3.  **Subprocess:** For import-behavior or process-level state tests.
 * **The Anti-Mocking Rule:** Integration tests must test reality. Never mock the inference engine, the memory banks, the NoProp training loop, or the reservoir when testing their respective correct behaviors.
 * **Every ML test file must include:** Shape/dtype assertions, numerical correctness vs. a known-good reference, a stored snapshot regression test, and a failure case test.
@@ -151,7 +167,7 @@ A feature or wave is **complete** only when all five conditions are met:
 
 ## 🧬 DREX-Specific Rules (`src/drex/`, `research/`, `experimental/`)
 
-*DREX serves as the research foundation of `konjo-core`. These rules encode the architectural contracts defined in `DREX_UNIFIED_SPEC.md`. When this section conflicts with a general rule, this section wins.*
+*DREX serves as the research foundation of `kyro`. These rules encode the architectural contracts defined in `DREX_UNIFIED_SPEC.md`. When this section conflicts with a general rule, this section wins.*
 
 ### Component Contracts
 
