@@ -16,6 +16,119 @@
 
 ## Session Log
 
+### Session: Pre-Sprint-15 — Query Route Timeout Parity
+
+**Date:** 2026-04-22
+**Goal:** Add `asyncio.wait_for` timeout + K2 telemetry to `/query` and `/query/stream` routes.
+
+**What was done:**
+- [x] Wrapped `_execute()` and `_stream_execute()` closures with `asyncio.wait_for(timeout=timeout_seconds)`
+- [x] Added `logger.warning(...)` on both `asyncio.TimeoutError` paths (K2 compliance — was gap)
+- [x] Created `tests/unit/test_query_route_timeout.py` with 4 tests (504 path, happy path, stream 504, detail format)
+- [x] Updated `_SettingsStub` in 3 existing test files with `request_timeout_seconds: float = 30.0`
+- [x] CRITIC: ruff permanently absent (6 attempts — skip forever; use `py_compile` + manual K1-K7)
+- [x] K1-K7: all pass (K2 gap found during CRITIC and fixed before VERIFY)
+- [x] Full suite: **427 passed in 34.57s** ✅
+- [x] Commit: `e48ed09` on `main` (5 files changed, 1196 insertions, 244 deletions)
+
+**Docs updated:**
+- [x] `PLAN.md`
+- [x] `CHANGELOG.md`
+- [x] `SESSION.md`
+- [x] `NEXT_SESSION_PROMPT.md`
+
+---
+
+### Session: Sprint 13 Implementation — Query Decomposition v0.7.5
+
+**Date:** 2026-04-22  
+**Goal:** Implement Sprint 13 query decomposition + multi-step retrieval contract in `/query` with request/header opt-in and synthesis telemetry.  
+**Session type:** Code + verification session.
+
+**What was done:**
+- [x] Added `konjoai/retrieve/decomposition.py`:
+  - `QueryDecomposer` (LLM JSON output schema with deterministic fallback)
+  - `ParallelRetriever` (`asyncio.gather` fan-out)
+  - `AnswerSynthesizer` (sub-answer synthesis)
+- [x] Added config guards in `konjoai/config.py`:
+  - `enable_query_decomposition`
+  - `decomposition_max_sub_queries`
+- [x] Added request/response contract fields in `konjoai/api/schemas.py`:
+  - `QueryRequest.use_decomposition`
+  - `QueryResponse.decomposition_used`
+  - `QueryResponse.decomposition_sub_queries`
+  - `QueryResponse.decomposition_synthesis_hint`
+- [x] Updated `konjoai/api/routes/query.py`:
+  - body/header decomposition opt-in (`use_decomposition`, `use-decomposition`, `x-use-decomposition`)
+  - parallel sub-query retrieval + deduplicated chunk pool
+  - sub-answer generation and synthesized final answer
+  - decomposition telemetry propagation
+- [x] Added tests:
+  - `tests/unit/test_decomposition.py`
+  - `tests/unit/test_query_decomposition_route.py`
+- [x] Updated existing query route settings stubs:
+  - `tests/unit/test_query_crag_route.py`
+  - `tests/unit/test_query_self_rag_route.py`
+
+**Focused validation:**
+- [x] `python3 -m pytest tests/unit/test_decomposition.py tests/unit/test_query_decomposition_route.py tests/unit/test_query_crag_route.py tests/unit/test_query_self_rag_route.py tests/unit/test_router.py -q`
+- [x] Result: **65 passed, 0 failed**
+- [x] `python3 -m pytest tests/unit/test_async_pipeline.py tests/unit/test_decomposition.py tests/unit/test_query_decomposition_route.py tests/unit/test_query_crag_route.py tests/unit/test_query_self_rag_route.py tests/unit/test_router.py -q`
+- [x] Result: **76 passed, 0 failed**
+
+**Docs updated:**
+- [x] `PLAN.md`
+- [x] `README.md`
+- [x] `CHANGELOG.md`
+
+### Session: Sprint 12 Refresh — Self-RAG v0.7.0 Contract Alignment
+
+**Date:** 2026-04-22  
+**Goal:** Align Self-RAG behavior with production-plan Sprint 12 contract (iterative critique + refined retrieval + per-request opt-in + telemetry).  
+**Session type:** Code + verification session.
+
+**What was done:**
+- [x] Replaced legacy post-pass Self-RAG flow with `SelfRAGOrchestrator` + `SelfRAGCritic` in `konjoai/retrieve/self_rag.py`
+- [x] Implemented bounded iterative reflection loop with ISREL / ISSUP / ISUSE scoring and refined retrieval when `ISSUP < 0.5`
+- [x] Added `QueryRequest.use_self_rag` request flag and header opt-in support (`use_self_rag`, `use-self-rag`, `x-use-self-rag`)
+- [x] Added response/telemetry fields: `self_rag_iteration_scores`, `self_rag_total_tokens`
+- [x] Updated default `self_rag_max_iterations` to `3` in `konjoai/config.py`
+- [x] Added route tests: `tests/unit/test_query_self_rag_route.py`
+- [x] Preserved compatibility alias: `SelfRAGPipeline = SelfRAGOrchestrator`
+
+**Focused validation:**
+- [x] `python3 -m pytest tests/unit/test_self_rag.py tests/unit/test_query_crag_route.py tests/unit/test_query_self_rag_route.py -q`
+- [x] Result: **42 passed, 0 failed**
+
+**Docs updated:**
+- [x] `PLAN.md`
+- [x] `README.md`
+- [x] `CHANGELOG.md`
+
+### Session: Sprint 11 Refresh — CRAG v0.6.0 Contract Alignment
+
+**Date:** 2026-04-22  
+**Goal:** Align CRAG implementation to Sprint 11 production contract and add production plan artifact into repo.  
+**Session type:** Code + verification session.
+
+**What was done:**
+- [x] Added `kyro_production_plan.md` to repo root
+- [x] Replaced legacy CRAG logic with `CRAGEvaluator` in `konjoai/retrieve/crag.py`
+- [x] Implemented normalized quality classes: `CORRECT > 0.7`, `AMBIGUOUS 0.3–0.7`, `INCORRECT < 0.3`
+- [x] Added all-incorrect fallback stub (`web_fallback`) and ambiguous refinement over decomposed sub-queries
+- [x] Added config thresholds: `crag_correct_threshold`, `crag_ambiguous_threshold`
+- [x] Added request opt-in: `QueryRequest.use_crag` and header opt-in support (`use_crag`, `use-crag`, `x-use-crag`)
+- [x] Added response/telemetry fields: `crag_scores`, `crag_classification`, `crag_refinement_triggered`
+- [x] Added/updated tests:
+  - `tests/unit/test_crag.py`
+  - `tests/unit/test_query_crag_route.py`
+- [x] Focused validation passed: **11 passed, 0 failed**
+
+**Docs updated:**
+- [x] `PLAN.md`
+- [x] `README.md`
+- [x] `CHANGELOG.md`
+
 ### Session: Sprints 7 / 10–12 — Adapter Architecture · Adaptive Chunking · CRAG · Self-RAG
 
 **Date:** 2026 (current session)

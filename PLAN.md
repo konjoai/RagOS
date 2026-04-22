@@ -3,15 +3,43 @@
 > **ቆንጆ** — Beautiful. **根性** — Fighting spirit. **康宙** — Health of the universe. **खोजो** — Search and discover.
 > *Make it konjo — build, ship, rest, repeat.*
 
-**Strategic document:** See [`KORE_PLAN.md`](KORE_PLAN.md) for full market analysis, sprint roadmap, and licensing recommendation.
+**Strategic documents:**
+- [`KORE_PLAN.md`](KORE_PLAN.md) — full market analysis, sprint roadmap, licensing recommendation.
+- [`kyro_production_plan.md`](kyro_production_plan.md) — production execution plan and operational rollout notes.
 
 ---
 
-## Current State: Sprint 6 Complete (v0.3.0)
+## Current State: Sprint 14 Complete (v0.8.0)
 
-- **Tests:** 226 passing, 0 failing
+- **Tests:** 427 passing, 0 failing
 - **Branch:** `main`
-- **Stack:** FastAPI + HyDE + ColBERT + hybrid search + RAGAS + Vectro bridge + streaming + semantic cache
+- **Stack:** FastAPI + HyDE + ColBERT + hybrid search + RAGAS + Vectro bridge + streaming + semantic cache + adaptive chunking (SemanticSplitter, LateChunker, ChunkComplexity router)
+
+---
+
+## Active Sprint Delta: Sprint 14 — Agentic RAG Foundation (v0.8.0, Wave 1)
+
+**Goal:** Add a bounded ReAct loop with tool-use traceability and expose it via `/agent/query`.
+
+### Implementation Checklist — Sprint 14 (Wave 1)
+
+| # | File | Change | Status |
+|---|---|---|---|
+| 1 | `konjoai/agent/react.py` | Add `RAGAgent`, `ToolRegistry`, action parser, bounded ReAct loop | ✅ |
+| 2 | `konjoai/agent/__init__.py` | Export `RAGAgent`, `AgentResult`, `AgentStep` | ✅ |
+| 3 | `konjoai/api/routes/agent.py` | Add `POST /agent/query` endpoint + telemetry wrapping | ✅ |
+| 4 | `konjoai/api/app.py` | Register `agent` router | ✅ |
+| 5 | `tests/unit/test_agentic.py` | Add agent core tests (retrieve/finish, parser fallback, max-step guard) | ✅ |
+| 6 | `tests/unit/test_agent_route.py` | Add route tests for telemetry on/off and response contract | ✅ |
+| 7 | `konjoai/api/routes/agent.py` + `tests/unit/test_agent_route.py` | Enforce `request_timeout_seconds` on `/agent/query`; return HTTP 504 on timeout | ✅ |
+
+### Sprint 14 Gate (Wave 1)
+
+1. Agent loop is bounded (`max_steps`) and never runs unbounded. ✅
+2. Tool action trace is returned in API response (`steps[]`). ✅
+3. Endpoint preserves K3/K6 behavior (telemetry optional, no breaking change to `/query`). ✅
+4. Focused unit tests pass for new agent core and route. ✅
+5. Endpoint timeout is enforced and returns deterministic 504 on overrun. ✅
 
 ---
 
@@ -44,33 +72,54 @@
 
 ---
 
-## Phase 1 → Phase 2 Transition: Active Sprint 10 — Adaptive Chunking
+## Phase 1 → Phase 2: Sprint 10 Complete — Adaptive Chunking (v0.5.5)
 
-### Implementation Checklist — Sprint 10
+### Implementation Checklist — Sprint 10 (Full Deliverables)
 
 | # | File | Change | Status |
 |---|---|---|---|
 | 1 | `konjoai/ingest/adaptive_chunker.py` | `QueryComplexityScorer`, `MultiGranularityChunker`, `AdaptiveRetriever` | ✅ |
-| 2 | `konjoai/config.py` | `adaptive_chunking_enabled`, `chunk_sizes_hierarchy` | ✅ |
-| 3 | `tests/unit/test_adaptive_chunker.py` | Complexity scoring, multi-granularity, retrieval dispatch | ✅ |
+| 2 | `konjoai/ingest/chunkers.py` | `SemanticSplitter` — cosine boundary detection via buffered sentence embedding | ✅ |
+| 3 | `konjoai/ingest/chunkers.py` | `LateChunker` — Jina-style post-embedding split (single-batch full-doc encoding) | ✅ |
+| 4 | `konjoai/ingest/chunkers.py` | `get_chunker()` updated to support `"semantic"` and `"late"` strategies | ✅ |
+| 5 | `konjoai/retrieve/router.py` | `ChunkComplexity` enum (SIMPLE/MEDIUM/COMPLEX) + `CHUNK_SIZE_MAP` | ✅ |
+| 6 | `konjoai/retrieve/router.py` | `classify_chunk_complexity()` — maps query → `(ChunkComplexity, chunk_size)` | ✅ |
+| 7 | `konjoai/config.py` | `chunk_strategy` supports `"recursive"\|"sentence_window"\|"semantic"\|"late"` | ✅ |
+| 8 | `konjoai/config.py` | `semantic_split_threshold`, `late_chunk_threshold` settings added | ✅ |
+| 9 | `scripts/ablation_chunking.py` | Ablation harness — all 4 strategies, proxy metrics, JSON to `evals/runs/` | ✅ |
+| 10 | `tests/unit/test_semantic_splitter.py` | 32 tests — construction, splitting, factory | ✅ |
+| 11 | `tests/unit/test_late_chunker.py` | 33 tests — construction, splitting, metadata, factory | ✅ |
+| 12 | `tests/unit/test_router.py` | 28 new tests — `ChunkComplexity`, `CHUNK_SIZE_MAP`, `classify_chunk_complexity` | ✅ |
+
+**Sprint 10 Gate Results:** 423 passed, 0 failed (up from 329 — +94 tests)
 
 ### Implementation Checklist — Sprint 11: CRAG
 
 | # | File | Change | Status |
 |---|---|---|---|
-| 1 | `konjoai/retrieve/crag.py` | `RelevanceGrade`, `grade_documents()`, `CRAGPipeline` | ✅ |
-| 2 | `konjoai/config.py` | `enable_crag`, `crag_relevance_threshold` | ✅ |
-| 3 | `konjoai/api/routes/query.py` | Wire CRAG step between hybrid_search and rerank | ✅ |
-| 4 | `tests/unit/test_crag.py` | Grade relevant/irrelevant/ambiguous, fallback, threshold | ✅ |
+| 1 | `konjoai/retrieve/crag.py` | Replace legacy pipeline with `CRAGEvaluator`: normalized scores, `CORRECT/AMBIGUOUS/INCORRECT`, fallback stub, ambiguous refinement | ✅ |
+| 2 | `konjoai/config.py` | Add `crag_correct_threshold`, `crag_ambiguous_threshold` | ✅ |
+| 3 | `konjoai/api/schemas.py` + `konjoai/api/routes/query.py` | Add `QueryRequest.use_crag`; support `use_crag` header; emit `crag_scores`, `crag_classification`, `crag_refinement_triggered` | ✅ |
+| 4 | `tests/unit/test_crag.py` + `tests/unit/test_query_crag_route.py` | Add Sprint 11 contract tests for quality bands, fallback, refinement, and `/query` opt-in behavior | ✅ |
 
 ### Implementation Checklist — Sprint 12: Self-RAG
 
 | # | File | Change | Status |
 |---|---|---|---|
-| 1 | `konjoai/retrieve/self_rag.py` | `SelfRAGTokens`, `SelfRAGCritic`, `SelfRAGPipeline` | ✅ |
-| 2 | `konjoai/config.py` | `enable_self_rag`, `self_rag_max_iterations` | ✅ |
-| 3 | `konjoai/api/routes/query.py` | Wire Self-RAG as optional post-generate critique | ✅ |
-| 4 | `tests/unit/test_self_rag.py` | Retrieve/no-retrieve decision, critique tokens, iteration loop | ✅ |
+| 1 | `konjoai/retrieve/self_rag.py` | `SelfRAGOrchestrator` iterative loop + `SelfRAGCritic` + `SelfRAGTokens` + refined retrieval callback contract | ✅ |
+| 2 | `konjoai/config.py` | `enable_self_rag`, `self_rag_max_iterations=3` | ✅ |
+| 3 | `konjoai/api/schemas.py` + `konjoai/api/routes/query.py` | `QueryRequest.use_self_rag` opt-in + Self-RAG telemetry fields (`self_rag_iteration_scores`, `self_rag_total_tokens`) | ✅ |
+| 4 | `tests/unit/test_self_rag.py` + `tests/unit/test_query_self_rag_route.py` | Critique/orchestrator unit tests + `/query` opt-in route tests (body/header/default-off) | ✅ |
+
+### Implementation Checklist — Sprint 13: Query Decomposition + Multi-Step Retrieval
+
+| # | File | Change | Status |
+|---|---|---|---|
+| 1 | `konjoai/retrieve/decomposition.py` | Added `QueryDecomposer` (LLM JSON output + deterministic fallback), `ParallelRetriever`, and `AnswerSynthesizer` | ✅ |
+| 2 | `konjoai/config.py` | Added `enable_query_decomposition` and `decomposition_max_sub_queries` guards | ✅ |
+| 3 | `konjoai/api/schemas.py` | Added `QueryRequest.use_decomposition` and decomposition response fields | ✅ |
+| 4 | `konjoai/api/routes/query.py` | Added body/header opt-in, parallel fan-out retrieval, sub-answer synthesis, and decomposition telemetry | ✅ |
+| 5 | `tests/unit/test_decomposition.py` + `tests/unit/test_query_decomposition_route.py` | Added decomposition unit coverage and `/query` opt-in route behavior tests | ✅ |
 
 ---
 
@@ -83,11 +132,11 @@
 | **7** | **v0.3.5** | **P1** | **Adapter architecture (swap any backend)** | **✅ Active** |
 | 8 | v0.4.0 | P1 | Async pipeline + connection pooling (3× throughput) | ⬜ |
 | 9 | v0.5.0 | P1 | Streaming SSE (already exists; harden + OTel hooks) | ⬜ |
-| 10 | v0.5.5 | P2 | Adaptive chunking (query-aware granularity) | ✅ |
+| 10 | v0.5.5 | P2 | Adaptive chunking (SemanticSplitter, LateChunker, ChunkComplexity router, ablation harness) | ✅ 427 tests |
 | 11 | v0.6.0 | P2 | CRAG — retrieval critique + corrective fallback | ✅ |
 | 12 | v0.7.0 | P2 | Self-RAG — reflection tokens + critique loop | ✅ |
-| 13 | v0.7.5 | P3 | Query decomposition (multi-hop fan-out) | ⬜ |
-| 14 | v0.8.0 | P3 | Agentic RAG — ReAct loop | ⬜ |
+| 13 | v0.7.5 | P3 | Query decomposition (multi-hop fan-out) | ✅ |
+| 14 | v0.8.0 | P3 | Agentic RAG — ReAct loop | ✅ |
 | 15 | v0.8.5 | P3 | Lightweight GraphRAG (NetworkX + Louvain) | ⬜ |
 | 16 | v0.8.7 | P4 | OTel + Prometheus + Grafana | ⬜ |
 | 17 | v0.9.0 | P4 | Multi-tenancy + JWT | ⬜ |
