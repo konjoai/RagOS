@@ -5,10 +5,11 @@ import json
 import logging
 from typing import Generator as IterGenerator
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from konjoai.api.schemas import QueryRequest, QueryResponse, SourceDoc
+from konjoai.auth.deps import get_tenant_id
 from konjoai.config import get_settings
 from konjoai.telemetry import PipelineTelemetry, record_pipeline_metrics, timed
 
@@ -23,7 +24,11 @@ def _parse_bool_header(raw: str | None) -> bool:
 
 
 @router.post("", response_model=QueryResponse)
-async def query(req: QueryRequest, request: Request) -> QueryResponse:  # noqa: C901
+async def query(  # noqa: C901
+    req: QueryRequest,
+    request: Request,
+    tenant_id: str | None = Depends(get_tenant_id),  # noqa: ARG001
+) -> QueryResponse:
     """Run the full RAG pipeline: route → (HyDE) → (decomposition) → hybrid_search → (CRAG) → rerank → generate → (Self-RAG).
 
     Pipeline steps (each wrapped in timed() when telemetry is enabled):
@@ -425,7 +430,10 @@ async def query(req: QueryRequest, request: Request) -> QueryResponse:  # noqa: 
 
 
 @router.post("/stream")
-async def query_stream(req: QueryRequest) -> StreamingResponse:  # noqa: C901
+async def query_stream(  # noqa: C901
+    req: QueryRequest,
+    tenant_id: str | None = Depends(get_tenant_id),  # noqa: ARG001
+) -> StreamingResponse:
     """SSE streaming version of the RAG pipeline.
 
     Emits Server-Sent Events in the format::

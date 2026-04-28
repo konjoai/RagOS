@@ -82,6 +82,20 @@ konjoai status            Show collection stats
 | GET    | /health      | Collection health + document count |
 | GET    | /metrics     | Prometheus exposition (requires `otel_enabled=true` + `pip install prometheus-client`) |
 
+Multi-tenancy is off by default. Enable with `MULTI_TENANCY_ENABLED=true` and `JWT_SECRET_KEY=<secret>`. When enabled, every request must include an `Authorization: Bearer <jwt>` header; the `sub` claim is used as `tenant_id` to scope Qdrant reads and writes.
+
+```bash
+# Install JWT dep
+pip install PyJWT>=2.8
+
+# Example: query as tenant "acme-corp"
+TOKEN=$(python3 -c "import jwt, time; print(jwt.encode({'sub':'acme-corp','exp':int(time.time())+3600}, 'my-secret', algorithm='HS256'))")
+curl -s -X POST http://localhost:8000/query \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"question":"What is the refund policy?"}'
+```
+
 Docs at `http://localhost:8000/docs` after `konjoai serve`.
 
 CRAG and Self-RAG can be enabled per request with request body flags, or with headers:

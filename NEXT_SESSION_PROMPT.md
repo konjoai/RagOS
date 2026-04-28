@@ -2,24 +2,22 @@
 
 Read this first before any implementation sprint.
 
-## Current State (as of Sprint 16 session, 2026-04-28)
+## Current State (as of Sprint 17 session, 2026-04-28)
 
-- **Last commit:** pending push — Sprint 16: OTel + Prometheus Observability Layer
-- **Tests:** 485 passing, 6 skipped (prometheus-client absent), 5 pre-existing Python 3.9 compat failures
-- **Version:** v0.8.7 (Sprint 16 OTel/Prometheus complete)
-- **Active sprint:** Sprint 17 — Multi-tenancy + JWT
+- **Last commit:** pending push — Sprint 17: Multi-tenancy + JWT
+- **Tests:** 509 passing, 15 skipped (PyJWT/prometheus-client absent), 5 pre-existing Python 3.9 compat failures
+- **Version:** v0.9.0 (Sprint 17 Multi-tenancy + JWT complete)
+- **Active sprint:** Sprint 18 — Auth + rate limiting
 
-## What Was Done Last Session (Sprint 16 — OTel + Prometheus)
+## What Was Done Last Session (Sprint 17 — Multi-tenancy + JWT)
 
-- Extended `konjoai/telemetry.py` with `KyroMetrics` (Prometheus counters/histograms), `KyroTracer` (OTel span wrapper), `_noop_span()`, `get_metrics()`, `get_tracer()`, `record_pipeline_metrics()`; `_HAS_PROMETHEUS`/`_HAS_OTEL` import guards (K5: no hard deps)
-- Added 4 settings to `konjoai/config.py`: `otel_enabled=False`, `otel_endpoint=""`, `otel_service_name="kyro"`, `prometheus_port=8001`
-- Created `konjoai/api/routes/health.py` with `GET /metrics` Prometheus exposition endpoint (404 when disabled, 503 when dep absent)
-- Registered `health_route.router` in `konjoai/api/app.py`
-- Added `record_pipeline_metrics(tel, intent.value, enabled=settings.otel_enabled)` to `/query` route
-- Documented optional deps (`prometheus-client>=0.19`, `opentelemetry-sdk>=1.20`) in `requirements.txt`
-- Added 26 new tests to `tests/unit/test_telemetry.py` (46 passed + 6 skipped when prometheus-client absent)
-- Updated `_SettingsStub` in 5 route test files with `otel_enabled: bool = False`
-- Tests: 464 → 485 (+21 new). ruff permanently absent — `python3 -m py_compile` only.
+- Created `konjoai/auth/` package: `tenant.py` (`_current_tenant_id` ContextVar, `get/set_current_tenant_id`, `ANONYMOUS_TENANT`), `jwt_auth.py` (`TenantClaims`, `decode_token`, `_HAS_JWT`), `deps.py` (`get_tenant_id` async generator dep)
+- Added 4 settings to `konjoai/config.py`: `multi_tenancy_enabled=False`, `jwt_secret_key=""`, `jwt_algorithm="HS256"`, `tenant_id_claim="sub"`
+- Modified `konjoai/store/qdrant.py`: `upsert()` stamps `tenant_id` in payload; `search()` adds `Filter(must=[FieldCondition(...)])` — both read from ContextVar, backward-compatible when unset
+- Injected `tenant_id: str | None = Depends(get_tenant_id)` into `ingest` and both `query`/`query_stream` routes
+- Documented `# PyJWT>=2.8` in `requirements.txt`
+- Created `tests/unit/test_auth.py` (24 passed + 9 skipped without PyJWT)
+- Tests: 485 → 509 (+24 new). ruff permanently absent — `python3 -m py_compile` only.
 
 ## Active Invariants (K1–K7)
 
@@ -39,28 +37,28 @@ Read this first before any implementation sprint.
 - `DREX_UNIFIED_SPEC.md` canonical source is shared from the `drex` workspace; kyro keeps a local pointer file.
 - ruff is permanently absent from this machine — skip it everywhere. Syntax check via `python3 -m py_compile`.
 
-## Recommended Next Task — Sprint 17: Multi-tenancy + JWT
+## Recommended Next Task — Sprint 18: Auth + Rate Limiting
 
 ### Goal
-Add per-tenant isolation so multiple organizations can share one Kyro deployment. Each tenant gets its own Qdrant collection namespace, rate-limit bucket, and JWT-authenticated session. Feature-flagged off by default (K3). No breaking API changes (K6).
+Add per-endpoint rate limiting as a complement to Sprint 17 JWT auth. Rate limits prevent abuse and provide per-tenant throttling using a sliding window algorithm. Feature-flagged off by default (K3). No new hard deps — pure stdlib (K5).
 
 ### Files to Create/Modify
 
 | File | Change |
 |------|--------|
-| `konjoai/auth/` | New package: `jwt_auth.py` (decode/verify HS256 JWT), `tenant.py` (tenant context dataclass) |
-| `konjoai/config.py` | Add `multi_tenancy_enabled=False`, `jwt_secret_key=""`, `jwt_algorithm="HS256"` |
-| `konjoai/api/app.py` | Optional JWT middleware (K3: no-op when disabled) |
-| `konjoai/api/routes/query.py` | Tenant namespace scoping on Qdrant collection name |
-| `konjoai/store/qdrant.py` | Accept tenant-scoped collection name parameter |
-| `tests/unit/test_auth.py` | ≥ 20 tests covering JWT decode, tenant extraction, K3 disabled fallthrough |
+| `konjoai/auth/ratelimit.py` | `SlidingWindowRateLimiter` (per-key deque), `check_rate_limit()` dep |
+| `konjoai/config.py` | `rate_limit_enabled=False`, `rate_limit_rpm=60`, `rate_limit_burst=10` |
+| `konjoai/auth/deps.py` | Add `require_rate_limit` dep; raises 429 + `Retry-After` header on breach |
+| `konjoai/api/routes/query.py` | Inject rate-limit dep |
+| `konjoai/api/routes/ingest.py` | Inject rate-limit dep |
+| `tests/unit/test_ratelimit.py` | ≥ 20 tests: sliding window, burst, per-tenant isolation, K3 disabled pass-through, 429 contract |
 
-### Sprint 17 Gate (all required before SHIP)
-1. Tenant isolation: each tenant only reads/writes to their Qdrant namespace. ✅
-2. JWT validation enabled only when `multi_tenancy_enabled=True` (K3). ✅
-3. No breaking changes to existing unauthenticated routes (K6). ✅
-4. New deps optional or guarded (K5). ✅
-5. Full suite stays at ≥ 485 tests passing. ✅
+### Sprint 18 Gate (all required before SHIP)
+1. Rate limits isolated per tenant_id (or global `__anonymous__` when multi_tenancy disabled).
+2. 429 returned on breach with `Retry-After` header (K2 observability).
+3. K3: `rate_limit_enabled=False` → no-op, zero overhead.
+4. No new hard deps (K5: `collections.deque` + `time`).
+5. Full suite stays at ≥ 509 tests passing.
 
 ### Critical Patch Target Rule (NEVER FORGET)
 Lazy imports inside closures must be patched at the **source module**, not at the route module.

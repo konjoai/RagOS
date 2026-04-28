@@ -37,3 +37,6 @@ click>=8.1.0
 # prometheus-client>=0.19
 # opentelemetry-sdk>=1.20
 # opentelemetry-exporter-otlp-proto-grpc>=1.20
+
+# Multi-tenancy JWT auth (optional — Sprint 17; install with: pip install PyJWT)
+# PyJWT>=2.8

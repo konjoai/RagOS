@@ -3,6 +3,29 @@
 All notable changes to KonjoOS are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] — Sprint 17: Multi-tenancy + JWT (v0.9.0)
+
+### Added
+- `konjoai/auth/` — new package:
+  - `tenant.py`: `_current_tenant_id` ContextVar, `get_current_tenant_id()`, `set_current_tenant_id()`, `ANONYMOUS_TENANT` sentinel — zero-overhead tenant propagation through async tasks and `asyncio.to_thread` threads
+  - `jwt_auth.py`: `TenantClaims` dataclass, `decode_token()`, `_HAS_JWT` guard (K5: PyJWT optional)
+  - `deps.py`: `get_tenant_id` async generator FastAPI dependency — K3 pass-through when disabled, 401 on missing/invalid token, 503 when secret unconfigured, sets ContextVar for downstream store scoping, cleanup in `finally`
+  - `__init__.py`: package exports
+- `tests/unit/test_auth.py` — 24 tests (+ 9 skipped without PyJWT): `TenantClaims`, `decode_token`, `_HAS_JWT`, ContextVar isolation, `get_tenant_id` dep paths, `QdrantStore` payload injection and filter
+
+### Changed
+- `konjoai/config.py`: added `multi_tenancy_enabled=False`, `jwt_secret_key=""`, `jwt_algorithm="HS256"`, `tenant_id_claim="sub"` (K3: off by default)
+- `konjoai/store/qdrant.py`: `upsert()` stamps `tenant_id` payload field when ContextVar set; `search()` adds `Filter(must=[FieldCondition(key="tenant_id", ...)])` when ContextVar set (K6: `None` context = no filter = full backward compat)
+- `konjoai/api/routes/ingest.py`: `tenant_id: str | None = Depends(get_tenant_id)` injected (sets ContextVar as side-effect; zero ingest logic change)
+- `konjoai/api/routes/query.py`: `tenant_id: str | None = Depends(get_tenant_id)` on both `/query` and `/query/stream`
+- `requirements.txt`: `# PyJWT>=2.8` documented as optional
+
+### Tests
+- Focused run: `python3 -m pytest tests/unit/test_auth.py -v` → **24 passed, 9 skipped in 1.77s**
+- Full regression: `python3 -m pytest tests/unit/ -q --tb=short` → **509 passed, 5 pre-existing failures**
+
+---
+
 ## [Unreleased] — Sprint 16: OTel + Prometheus Observability Layer (v0.8.7)
 
 ### Added

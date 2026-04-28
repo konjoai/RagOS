@@ -114,6 +114,12 @@ class Settings(BaseSettings):
     otel_service_name: str = "kyro"         # OTel service.name attribute
     prometheus_port: int = 8001             # port for a future standalone Prometheus push server
 
+    # ── Multi-tenancy + JWT (Sprint 17) ──────────────────────────────────────
+    multi_tenancy_enabled: bool = False  # off by default; K3 graceful degradation
+    jwt_secret_key: str = ""             # HS256 HMAC secret (must be non-empty when enabled)
+    jwt_algorithm: str = "HS256"         # JWT signing algorithm
+    tenant_id_claim: str = "sub"         # JWT claim used as tenant_id
+
     # ── Async Pipeline (Sprint 8) ─────────────────────────────────────────────
     async_enabled: bool = True               # on by default for async pipeline
     request_timeout_seconds: float = 30.0   # asyncio.timeout ceiling per request

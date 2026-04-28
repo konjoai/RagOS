@@ -9,11 +9,11 @@
 
 ---
 
-## Current State: Sprint 16 Complete (v0.8.7)
+## Current State: Sprint 17 Complete (v0.9.0)
 
-- **Tests:** 485 passing (+ 6 skipped when prometheus-client absent), 5 pre-existing Python 3.9 compat failures
+- **Tests:** 509 passing (+ 15 skipped), 5 pre-existing Python 3.9 compat failures
 - **Branch:** `main`
-- **Stack:** FastAPI + HyDE + ColBERT + hybrid search + RAGAS + Vectro bridge + streaming + semantic cache + adaptive chunking + CRAG + Self-RAG + Query Decomposition + Agentic RAG + GraphRAG + **OTel + Prometheus (Sprint 16)**
+- **Stack:** FastAPI + HyDE + ColBERT + hybrid search + RAGAS + Vectro bridge + streaming + semantic cache + adaptive chunking + CRAG + Self-RAG + Query Decomposition + Agentic RAG + GraphRAG + OTel + Prometheus + **Multi-tenancy + JWT (Sprint 17)**
 
 ---
 
@@ -40,6 +40,37 @@
 3. Endpoint preserves K3/K6 behavior (telemetry optional, no breaking change to `/query`). ✅
 4. Focused unit tests pass for new agent core and route. ✅
 5. Endpoint timeout is enforced and returns deterministic 504 on overrun. ✅
+
+---
+
+## Completed Sprint: Sprint 17 — Multi-tenancy + JWT (v0.9.0)
+
+**Goal:** Add per-tenant isolation so multiple organisations can share one Kyro deployment. Each tenant's embeddings are scoped by a `tenant_id` payload field in Qdrant; JWT HS256 authentication extracts the tenant from the `sub` claim. Feature-flagged off by default (K3). No breaking API changes (K6). PyJWT is an optional dep (K5).
+
+**Design:** Python `contextvars.ContextVar` propagates the active `tenant_id` through the async task and into `asyncio.to_thread` threads, so `QdrantStore.search()` and `upsert()` automatically scope without any signature changes to `hybrid_search` or `dense_search`.
+
+### Implementation Checklist — Sprint 17
+
+| # | File | Change | Status |
+|---|---|---|---|
+| 1 | `konjoai/auth/__init__.py` | Package init exporting `TenantClaims`, `decode_token`, `_HAS_JWT`, `ANONYMOUS_TENANT`, `get_current_tenant_id`, `set_current_tenant_id` | ✅ |
+| 2 | `konjoai/auth/tenant.py` | `_current_tenant_id` ContextVar, `get_current_tenant_id()`, `set_current_tenant_id()`, `ANONYMOUS_TENANT` sentinel | ✅ |
+| 3 | `konjoai/auth/jwt_auth.py` | `TenantClaims` dataclass, `decode_token()`, `_HAS_JWT` guard; raises `RuntimeError` if PyJWT absent, `ValueError` on expired/invalid/missing-claim | ✅ |
+| 4 | `konjoai/auth/deps.py` | `get_tenant_id` async generator FastAPI dep; K3 pass-through (returns `None`) when `multi_tenancy_enabled=False`; 401 / 503 on failure; sets ContextVar; cleanup in `finally` | ✅ |
+| 5 | `konjoai/config.py` | `multi_tenancy_enabled=False`, `jwt_secret_key=""`, `jwt_algorithm="HS256"`, `tenant_id_claim="sub"` | ✅ |
+| 6 | `konjoai/store/qdrant.py` | `upsert()`: adds `tenant_id` to point payload when ContextVar set; `search()`: adds `Filter(must=[FieldCondition(key="tenant_id", ...)])` when ContextVar set | ✅ |
+| 7 | `konjoai/api/routes/ingest.py` | `tenant_id: str \| None = Depends(get_tenant_id)` injected (sets ContextVar as side-effect) | ✅ |
+| 8 | `konjoai/api/routes/query.py` | `tenant_id: str \| None = Depends(get_tenant_id)` injected on both `/query` and `/query/stream` | ✅ |
+| 9 | `requirements.txt` | Optional `# PyJWT>=2.8` documented | ✅ |
+| 10 | `tests/unit/test_auth.py` | 24 tests (+ 9 skipped without PyJWT): `TenantClaims`, `decode_token`, `_HAS_JWT`, ContextVar, `get_tenant_id` dep (K3/401/503/valid), `QdrantStore` tenant scoping | ✅ |
+
+### Sprint 17 Gate Results
+
+1. Tenant isolation: `search()` filtered by `tenant_id` FieldCondition; `upsert()` stamps `tenant_id` payload. ✅
+2. K3: `multi_tenancy_enabled=False` → `get_tenant_id` yields `None` → no filter → existing behaviour preserved. ✅
+3. K6: no breaking changes — all new params/fields default to `None`/`False`. ✅
+4. K5: PyJWT documented as optional; absent → `RuntimeError` only when auth actually attempted. ✅
+5. `509 passed, 15 skipped` (up from 485 — +24 new). ✅
 
 ---
 
@@ -191,7 +222,7 @@
 | 14 | v0.8.0 | P3 | Agentic RAG — ReAct loop | ✅ |
 | 15 | v0.8.5 | P3 | Lightweight GraphRAG (NetworkX + Louvain) | ✅ 464 tests |
 | 16 | v0.8.7 | P4 | OTel + Prometheus + Grafana | ✅ 485 tests |
-| 17 | v0.9.0 | P4 | Multi-tenancy + JWT | ⬜ |
+| 17 | v0.9.0 | P4 | Multi-tenancy + JWT | ✅ 509 tests |
 | 18 | v0.9.5 | P4 | Auth + rate limiting | ⬜ |
 | 19 | v0.9.8 | P5 | Python SDK + MCP server | ⬜ |
 | 20 | v1.0.0 | P5 | Helm chart + PyPI + Docs site | ⬜ |

@@ -76,16 +76,27 @@ class QdrantStore:
 
         from qdrant_client.models import PointStruct
 
+        # ── Sprint 17: attach tenant_id to every point payload ────────────────
+        from konjoai.auth.tenant import get_current_tenant_id  # noqa: PLC0415
+        tenant_id = get_current_tenant_id()
+
         points = [
             PointStruct(
                 id=str(uuid.uuid4()),
                 vector=embeddings[i].tolist(),
-                payload={"content": contents[i], "source": sources[i], **metadatas[i]},
+                payload={
+                    "content": contents[i],
+                    "source": sources[i],
+                    **metadatas[i],
+                    **({"tenant_id": tenant_id} if tenant_id is not None else {}),
+                },
             )
             for i in range(n)
         ]
         self._client.upsert(collection_name=self._collection, points=points, wait=True)
-        logger.debug("QdrantStore: upserted %d points", n)
+        logger.debug(
+            "QdrantStore: upserted %d points tenant_id=%s", n, tenant_id
+        )
         return _vectro_metrics
 
     def search(self, query_vector: np.ndarray, top_k: int = 20) -> list[SearchResult]:
@@ -95,13 +106,33 @@ class QdrantStore:
         ----------
         query_vector:
             Shape ``(1, dim)`` or ``(dim,)``, dtype ``float32``.
+
+        Tenant scoping (Sprint 17): when a tenant_id is active in the current
+        context (set by get_tenant_id FastAPI dep), results are filtered to
+        points whose ``tenant_id`` payload field matches. When no tenant_id is
+        set (multi_tenancy_enabled=False), all points are returned unchanged
+        (K6 backward-compatible).
         """
+        from konjoai.auth.tenant import get_current_tenant_id  # noqa: PLC0415
+
         vec = query_vector.flatten().tolist()
+        tenant_id = get_current_tenant_id()
+        query_filter = None
+        if tenant_id is not None:
+            try:
+                from qdrant_client.models import FieldCondition, Filter, MatchValue  # noqa: PLC0415
+                query_filter = Filter(
+                    must=[FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id))]
+                )
+            except ImportError:
+                logger.warning("qdrant-client models unavailable — tenant filter skipped")
+
         hits = self._client.query_points(
             collection_name=self._collection,
             query=vec,
             limit=top_k,
             with_payload=True,
+            query_filter=query_filter,
         ).points
 
         return [

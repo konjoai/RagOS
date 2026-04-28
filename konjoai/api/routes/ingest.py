@@ -5,7 +5,10 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from fastapi import Depends
+
 from konjoai.api.schemas import IngestRequest, IngestResponse, ManifestResponse, VerifyResponse
+from konjoai.auth.deps import get_tenant_id
 from konjoai.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -13,7 +16,10 @@ router = APIRouter(prefix="/ingest", tags=["ingest"])
 
 
 @router.post("", response_model=IngestResponse)
-def ingest(req: IngestRequest) -> IngestResponse:
+def ingest(
+    req: IngestRequest,
+    tenant_id: str | None = Depends(get_tenant_id),  # noqa: ARG001
+) -> IngestResponse:
     """Load files from *path*, chunk, embed, and upsert into Qdrant + BM25."""
     from pathlib import Path
 
