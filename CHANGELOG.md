@@ -3,7 +3,29 @@
 All notable changes to KonjoOS are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased] — Sprint 18: Auth Hardening + Rate Limiting (v0.9.5)
+## [v0.9.8] — Sprint 19: Python SDK + MCP Server
+
+### Added
+- `konjoai/sdk/` — typed synchronous Python SDK with zero new hard dependencies:
+  - `konjoai/sdk/exceptions.py` — `KyroError`, `KyroAuthError`, `KyroRateLimitError` (`retry_after` from `Retry-After` header), `KyroTimeoutError`, `KyroNotFoundError`; clean exception hierarchy for structured error handling
+  - `konjoai/sdk/models.py` — stdlib frozen dataclass response models: `SDKQueryResponse`, `SDKIngestResponse`, `SDKHealthResponse`, `SDKAgentQueryResponse`, `SDKAgentStep`, `SDKSourceDoc`, `SDKStreamChunk`
+  - `konjoai/sdk/client.py` — `KonjoClient(base_url, *, api_key, jwt_token, timeout)`: wraps `httpx.Client` with `X-API-Key` / `Authorization: Bearer` auth; exposes `query()`, `query_stream()` (SSE iterator), `ingest()`, `health()`, `agent_query()`; context-manager lifecycle
+  - `konjoai/sdk/__init__.py` — all public SDK symbols exported
+- `konjoai/mcp/` — Model Context Protocol server:
+  - `konjoai/mcp/server.py` — `KyroMCPServer`: `TOOLS` constant (4 JSON Schema tool definitions), `list_tools()`, `async dispatch()` (pure Python, no mcp dep required), `from_url()` factory; `run_stdio()` with lazy mcp import (K3/K5)
+  - `konjoai/mcp/__init__.py` — `_HAS_MCP` flag, exports
+  - `konjoai/mcp/__main__.py` — `python -m konjoai.mcp` click CLI (`--base-url`, `--api-key`, `--jwt-token`, `--timeout`; reads `KYRO_API_KEY` / `KYRO_JWT_TOKEN` env vars)
+- MCP tool surface: `kyro_query`, `kyro_ingest`, `kyro_health`, `kyro_agent_query` — each with a well-typed JSON Schema `inputSchema`
+- `tests/unit/test_sdk.py` — 46 tests
+- `tests/unit/test_mcp.py` — 29 tests
+
+### Tests
+- Focused run: `python3 -m pytest tests/unit/test_sdk.py tests/unit/test_mcp.py -v` → **75 passed in 0.40s**
+- Full regression: `python3 -m pytest tests/ --timeout=120` → **687 passed, 15 skipped** (5 pre-existing Python 3.9 compat failures unchanged)
+
+---
+
+## [v0.9.5] — Sprint 18: Auth Hardening + Rate Limiting
 
 ### Added
 - `konjoai/auth/rate_limiter.py` — in-memory sliding-window rate limiter:

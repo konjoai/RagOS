@@ -9,11 +9,11 @@
 
 ---
 
-## Current State: Sprint 18 Complete (v0.9.5)
+## Current State: Sprint 19 Complete (v0.9.8)
 
-- **Tests:** 607 passing (+ 15 skipped), 5 pre-existing Python 3.9 compat failures
+- **Tests:** 687 passing (+ 15 skipped), 5 pre-existing Python 3.9 compat failures
 - **Branch:** `main`
-- **Stack:** FastAPI + HyDE + ColBERT + hybrid search + RAGAS + Vectro bridge + streaming + semantic cache + adaptive chunking + CRAG + Self-RAG + Query Decomposition + Agentic RAG + GraphRAG + OTel + Prometheus + Multi-tenancy + JWT + **Auth hardening + Rate limiting (Sprint 18)**
+- **Stack:** FastAPI + HyDE + ColBERT + hybrid search + RAGAS + Vectro bridge + streaming + semantic cache + adaptive chunking + CRAG + Self-RAG + Query Decomposition + Agentic RAG + GraphRAG + OTel + Prometheus + Multi-tenancy + JWT + Auth hardening + Rate limiting + **Python SDK + MCP server (Sprint 19)**
 
 ---
 
@@ -40,6 +40,40 @@
 3. Endpoint preserves K3/K6 behavior (telemetry optional, no breaking change to `/query`). ✅
 4. Focused unit tests pass for new agent core and route. ✅
 5. Endpoint timeout is enforced and returns deterministic 504 on overrun. ✅
+
+---
+
+## Completed Sprint: Sprint 19 — Python SDK + MCP server (v0.9.8)
+
+**Goal:** Ship a typed synchronous Python SDK (`konjoai.sdk.KonjoClient`) wrapping all Kyro API endpoints, and an MCP (Model Context Protocol) server (`konjoai.mcp.KyroMCPServer`) that exposes Kyro's RAG capabilities as tools consumable by any MCP-compatible agent. Both are production-grade, fully tested, and honour all Seven Konjo Invariants.
+
+**Design:**
+- `KonjoClient` wraps `httpx.Client` (already a hard dep via FastAPI/httpx ≥ 0.25) — zero new mandatory deps (K5). Typed response models use stdlib `dataclasses` to avoid transitive pydantic coupling in downstream consumers.
+- `KyroMCPServer.dispatch()` routes tool calls and is fully testable without the `mcp` package; the stdio transport (`run_stdio()`) imports `mcp` lazily so the module is always importable (K3/K5 pattern, matching Sprint 16–18 precedent).
+
+### Implementation Checklist — Sprint 19
+
+| # | File | Change | Status |
+|---|---|---|---|
+| 1 | `konjoai/sdk/exceptions.py` | `KyroError`, `KyroAuthError`, `KyroRateLimitError` (retry_after), `KyroTimeoutError`, `KyroNotFoundError` | ✅ |
+| 2 | `konjoai/sdk/models.py` | `SDKQueryResponse`, `SDKIngestResponse`, `SDKHealthResponse`, `SDKAgentQueryResponse`, `SDKAgentStep`, `SDKSourceDoc`, `SDKStreamChunk` — stdlib dataclasses, frozen | ✅ |
+| 3 | `konjoai/sdk/client.py` | `KonjoClient`: `query()`, `query_stream()`, `ingest()`, `health()`, `agent_query()`, context-manager lifecycle; `httpx.Client` with X-API-Key / Bearer auth | ✅ |
+| 4 | `konjoai/sdk/__init__.py` | Export all public SDK symbols | ✅ |
+| 5 | `konjoai/mcp/server.py` | `KyroMCPServer`: `list_tools()`, `async dispatch()`, `from_url()` factory; `TOOLS` constant (4 tools with JSON Schema); `run_stdio()` with lazy mcp import | ✅ |
+| 6 | `konjoai/mcp/__init__.py` | `_HAS_MCP` flag, exports | ✅ |
+| 7 | `konjoai/mcp/__main__.py` | `python -m konjoai.mcp` CLI via click (--base-url, --api-key, --jwt-token, --timeout) | ✅ |
+| 8 | `tests/unit/test_sdk.py` | 46 tests: exception hierarchy, model contracts, construction, query, stream, ingest, health, agent_query, lifecycle | ✅ |
+| 9 | `tests/unit/test_mcp.py` | 29 tests: _HAS_MCP, TOOLS schema, server construction, dispatch × 4 tools, error propagation, run_stdio guard | ✅ |
+
+### Sprint 19 Gate Results
+
+1. `KonjoClient` wraps all six API surfaces: query, stream, ingest, health, agent. ✅
+2. Streaming SSE correctly handles `data: {"token": ...}` and `data: [DONE]`. ✅
+3. All HTTP error codes map to typed exceptions (401→KyroAuthError, 429→KyroRateLimitError with retry_after, 5xx→KyroError). ✅
+4. MCP tool dispatch is testable without `mcp` installed (K3). ✅
+5. `run_stdio()` raises `RuntimeError` with install hint when `_HAS_MCP=False` (K3). ✅
+6. Zero new hard dependencies — httpx already in requirements (K5). ✅
+7. **687 passed, 15 skipped** (up from 612 — +75 new tests). ✅
 
 ---
 
@@ -254,7 +288,7 @@
 | 16 | v0.8.7 | P4 | OTel + Prometheus + Grafana | ✅ 485 tests |
 | 17 | v0.9.0 | P4 | Multi-tenancy + JWT | ✅ 509 tests |
 | 18 | v0.9.5 | P4 | Auth + rate limiting | ✅ 607 tests |
-| 19 | v0.9.8 | P5 | Python SDK + MCP server | ⬜ |
+| 19 | v0.9.8 | P5 | Python SDK + MCP server | ✅ 687 tests |
 | 20 | v1.0.0 | P5 | Helm chart + PyPI + Docs site | ⬜ |
 
 ---

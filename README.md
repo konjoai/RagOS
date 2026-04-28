@@ -98,6 +98,50 @@ curl -s -X POST http://localhost:8000/query \
 
 Docs at `http://localhost:8000/docs` after `konjoai serve`.
 
+## Python SDK
+
+```python
+from konjoai.sdk import KonjoClient
+
+client = KonjoClient("http://localhost:8000", api_key="sk-...")
+
+# RAG query
+response = client.query("What is the refund policy?", top_k=5)
+print(response.answer)
+for src in response.sources:
+    print(f"  {src.source}  score={src.score:.3f}")
+
+# Streaming tokens
+for chunk in client.query_stream("Summarise the onboarding guide"):
+    print(chunk.text, end="", flush=True)
+
+# Ingest a directory
+result = client.ingest("/path/to/docs")
+print(f"Indexed {result.chunks_indexed} chunks from {result.sources_processed} sources")
+
+# Health check
+health = client.health()
+print(health.status, health.vector_count)
+
+# ReAct agent
+agent_result = client.agent_query("Find all compliance requirements", max_steps=5)
+print(agent_result.answer)
+```
+
+## MCP Server
+
+Expose Kyro to any MCP-compatible agent (Claude Desktop, etc.):
+
+```bash
+# Install optional MCP transport
+pip install mcp
+
+# Run the MCP server over stdio
+python -m konjoai.mcp --base-url http://localhost:8000 --api-key sk-...
+```
+
+Available tools: `kyro_query`, `kyro_ingest`, `kyro_health`, `kyro_agent_query`.
+
 CRAG and Self-RAG can be enabled per request with request body flags, or with headers:
 
 ```bash

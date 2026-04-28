@@ -40,3 +40,6 @@ click>=8.1.0
 
 # Multi-tenancy JWT auth (optional — Sprint 17; install with: pip install PyJWT)
 # PyJWT>=2.8
+
+# MCP server transport (optional — Sprint 19; install with: pip install mcp)
+# mcp>=1.0
