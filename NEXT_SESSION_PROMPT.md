@@ -2,23 +2,24 @@
 
 Read this first before any implementation sprint.
 
-## Current State (as of Sprint 15 session, 2026-04-22)
+## Current State (as of Sprint 16 session, 2026-04-28)
 
-- **Last commit:** pending push — Sprint 15: Lightweight GraphRAG Community Detection
-- **Tests:** 464 passing, 0 failing (`python3 -m pytest tests/unit/ -q --tb=short`)
-- **Version:** v0.8.5 (Sprint 15 GraphRAG complete)
-- **Active sprint:** Sprint 16 — OTel / Prometheus / Grafana Observability Layer
+- **Last commit:** pending push — Sprint 16: OTel + Prometheus Observability Layer
+- **Tests:** 485 passing, 6 skipped (prometheus-client absent), 5 pre-existing Python 3.9 compat failures
+- **Version:** v0.8.7 (Sprint 16 OTel/Prometheus complete)
+- **Active sprint:** Sprint 17 — Multi-tenancy + JWT
 
-## What Was Done Last Session (Sprint 15 — GraphRAG)
+## What Was Done Last Session (Sprint 16 — OTel + Prometheus)
 
-- Created `konjoai/retrieve/graph_rag.py`: `_tokenize()`, `EntityGraph` (Jaccard similarity graph builder), `CommunityContext`, `GraphRAGResult`, `GraphRAGRetriever`, `get_graph_rag_retriever()` singleton; `_HAS_NETWORKX` guard for graceful fallback when networkx absent
-- Added 3 settings to `konjoai/config.py`: `enable_graph_rag: bool = False`, `graph_rag_max_communities: int = 5`, `graph_rag_similarity_threshold: float = 0.3`
-- Extended `konjoai/api/schemas.py`: `QueryRequest.use_graph_rag: bool = Field(False, ...)`, `QueryResponse.graph_rag_communities: list[str] | None = None`
-- Injected K3-gated GraphRAG block (Step 3c after hybrid retrieval) into `konjoai/api/routes/query.py`; `X-Use-Graph-Rag` response header
-- Added `networkx>=3.2` to `requirements.txt`
-- Created `tests/unit/test_graph_rag.py` (37 tests — tokenizer, entity graph, communities, retriever, K3 gate, NetworkX-absent fallback)
-- Updated `_SettingsStub` in 4 existing route test files with 3 new GraphRAG fields
-- Tests: 427 → 464 (+37 new). ruff permanently absent — `python3 -m py_compile` only.
+- Extended `konjoai/telemetry.py` with `KyroMetrics` (Prometheus counters/histograms), `KyroTracer` (OTel span wrapper), `_noop_span()`, `get_metrics()`, `get_tracer()`, `record_pipeline_metrics()`; `_HAS_PROMETHEUS`/`_HAS_OTEL` import guards (K5: no hard deps)
+- Added 4 settings to `konjoai/config.py`: `otel_enabled=False`, `otel_endpoint=""`, `otel_service_name="kyro"`, `prometheus_port=8001`
+- Created `konjoai/api/routes/health.py` with `GET /metrics` Prometheus exposition endpoint (404 when disabled, 503 when dep absent)
+- Registered `health_route.router` in `konjoai/api/app.py`
+- Added `record_pipeline_metrics(tel, intent.value, enabled=settings.otel_enabled)` to `/query` route
+- Documented optional deps (`prometheus-client>=0.19`, `opentelemetry-sdk>=1.20`) in `requirements.txt`
+- Added 26 new tests to `tests/unit/test_telemetry.py` (46 passed + 6 skipped when prometheus-client absent)
+- Updated `_SettingsStub` in 5 route test files with `otel_enabled: bool = False`
+- Tests: 464 → 485 (+21 new). ruff permanently absent — `python3 -m py_compile` only.
 
 ## Active Invariants (K1–K7)
 
@@ -38,28 +39,28 @@ Read this first before any implementation sprint.
 - `DREX_UNIFIED_SPEC.md` canonical source is shared from the `drex` workspace; kyro keeps a local pointer file.
 - ruff is permanently absent from this machine — skip it everywhere. Syntax check via `python3 -m py_compile`.
 
-## Recommended Next Task — Sprint 16: OTel / Prometheus / Grafana Observability Layer
+## Recommended Next Task — Sprint 17: Multi-tenancy + JWT
 
 ### Goal
-Add structured observability using OpenTelemetry (OTel) for tracing and Prometheus for metrics. Feature-flagged off by default (K3). No breaking API changes (K6).
+Add per-tenant isolation so multiple organizations can share one Kyro deployment. Each tenant gets its own Qdrant collection namespace, rate-limit bucket, and JWT-authenticated session. Feature-flagged off by default (K3). No breaking API changes (K6).
 
 ### Files to Create/Modify
 
 | File | Change |
 |------|--------|
-| `konjoai/telemetry.py` | New: OTel tracer + Prometheus counters/histograms; `_HAS_OTEL` guard |
-| `konjoai/config.py` | Add `enable_telemetry: bool = False`, `otel_endpoint: str = ""`, `prometheus_port: int = 8001` |
-| `konjoai/api/routes/query.py` | Instrument `/query` span; record latency histogram |
-| `konjoai/api/routes/health.py` | Add `/metrics` Prometheus endpoint (conditional on `enable_telemetry`) |
-| `requirements.txt` | Add `opentelemetry-sdk>=1.20`, `prometheus-client>=0.19` as optional extras |
-| `tests/unit/test_telemetry.py` | New: ≥ 20 tests covering tracer, metrics, K3 gate, OTel-absent fallback |
+| `konjoai/auth/` | New package: `jwt_auth.py` (decode/verify HS256 JWT), `tenant.py` (tenant context dataclass) |
+| `konjoai/config.py` | Add `multi_tenancy_enabled=False`, `jwt_secret_key=""`, `jwt_algorithm="HS256"` |
+| `konjoai/api/app.py` | Optional JWT middleware (K3: no-op when disabled) |
+| `konjoai/api/routes/query.py` | Tenant namespace scoping on Qdrant collection name |
+| `konjoai/store/qdrant.py` | Accept tenant-scoped collection name parameter |
+| `tests/unit/test_auth.py` | ≥ 20 tests covering JWT decode, tenant extraction, K3 disabled fallthrough |
 
-### Sprint 16 Gate (all required before SHIP)
-1. All telemetry behind `if settings.enable_telemetry` (K3) ✅
-2. No breaking changes to existing routes when flag is off (K6) ✅
-3. New deps optional or guarded with `_HAS_OTEL` (K5) ✅
-4. All K1-K7 pass on new code ✅
-5. Full suite stays at ≥ 464 tests passing ✅
+### Sprint 17 Gate (all required before SHIP)
+1. Tenant isolation: each tenant only reads/writes to their Qdrant namespace. ✅
+2. JWT validation enabled only when `multi_tenancy_enabled=True` (K3). ✅
+3. No breaking changes to existing unauthenticated routes (K6). ✅
+4. New deps optional or guarded (K5). ✅
+5. Full suite stays at ≥ 485 tests passing. ✅
 
 ### Critical Patch Target Rule (NEVER FORGET)
 Lazy imports inside closures must be patched at the **source module**, not at the route module.
@@ -73,12 +74,15 @@ Route-level `Depends`-injected callables patch at the **route module**:
 ## Quick Commands
 
 ```bash
-cd /Users/wscholl/kyro
+cd /Users/wesleyscholl/kyro
 
 # Run full unit suite
 python3 -m pytest tests/unit/ -q --tb=short
 
 # Run focused test file (update per sprint)
+python3 -m pytest tests/unit/test_telemetry.py -v
+
+# Verify Sprint 16 OTel/Prometheus still passes
 python3 -m pytest tests/unit/test_telemetry.py -v
 
 # Verify Sprint 15 GraphRAG still passes

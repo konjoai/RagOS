@@ -108,6 +108,12 @@ class Settings(BaseSettings):
     graph_rag_max_communities: int = 5           # max communities to surface per query
     graph_rag_similarity_threshold: float = 0.3  # Jaccard edge threshold [0, 1]
 
+    # ── OTel + Prometheus Observability (Sprint 16) ───────────────────────────
+    otel_enabled: bool = False              # off by default; K3 graceful degradation
+    otel_endpoint: str = ""                 # OTLP gRPC endpoint (e.g. "http://localhost:4317")
+    otel_service_name: str = "kyro"         # OTel service.name attribute
+    prometheus_port: int = 8001             # port for a future standalone Prometheus push server
+
     # ── Async Pipeline (Sprint 8) ─────────────────────────────────────────────
     async_enabled: bool = True               # on by default for async pipeline
     request_timeout_seconds: float = 30.0   # asyncio.timeout ceiling per request

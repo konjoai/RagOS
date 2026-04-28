@@ -1,11 +1,27 @@
-"""Unit tests for konjoai.telemetry — StepTiming, PipelineTelemetry, timed()."""
+"""Unit tests for konjoai.telemetry — StepTiming, PipelineTelemetry, timed(),
+KyroMetrics, KyroTracer, get_metrics(), get_tracer(), record_pipeline_metrics().
+"""
 from __future__ import annotations
 
 import time
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from konjoai.telemetry import PipelineTelemetry, StepTiming, timed
+import konjoai.telemetry as _tel_module
+from konjoai.telemetry import (
+    KyroMetrics,
+    KyroTracer,
+    PipelineTelemetry,
+    StepTiming,
+    _HAS_OTEL,
+    _HAS_PROMETHEUS,
+    _noop_span,
+    get_metrics,
+    get_tracer,
+    record_pipeline_metrics,
+    timed,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -161,3 +177,229 @@ class TestTimedContextManager:
         d = tel.as_dict()
         expected = d["steps"]["step_a"]["duration_ms"] + d["steps"]["step_b"]["duration_ms"]
         assert d["total_ms"] == pytest.approx(expected, abs=1e-3)
+
+
+# ---------------------------------------------------------------------------
+# Sprint 16: _noop_span
+# ---------------------------------------------------------------------------
+
+
+class TestNoopSpan:
+    def test_noop_span_is_context_manager(self) -> None:
+        with _noop_span():
+            pass  # must not raise
+
+    def test_noop_span_yields_none(self) -> None:
+        with _noop_span() as val:
+            assert val is None
+
+
+# ---------------------------------------------------------------------------
+# Sprint 16: KyroMetrics — disabled path (prometheus-client absent or enabled=False)
+# ---------------------------------------------------------------------------
+
+
+class TestKyroMetricsDisabled:
+    def test_available_false_when_disabled(self) -> None:
+        m = KyroMetrics(enabled=False)
+        assert m.available is False
+
+    def test_record_step_noop_when_disabled(self) -> None:
+        m = KyroMetrics(enabled=False)
+        m.record_step("hybrid_search", 42.0)  # must not raise
+
+    def test_inc_query_noop_when_disabled(self) -> None:
+        m = KyroMetrics(enabled=False)
+        m.inc_query("retrieval")  # must not raise
+
+    def test_inc_error_noop_when_disabled(self) -> None:
+        m = KyroMetrics(enabled=False)
+        m.inc_error("generate")  # must not raise
+
+    def test_inc_cache_hit_noop_when_disabled(self) -> None:
+        m = KyroMetrics(enabled=False)
+        m.inc_cache_hit()  # must not raise
+
+    def test_exposition_returns_empty_when_disabled(self) -> None:
+        m = KyroMetrics(enabled=False)
+        assert m.exposition() == ""
+
+    def test_available_false_when_prometheus_absent(self) -> None:
+        with patch.object(_tel_module, "_HAS_PROMETHEUS", False):
+            m = KyroMetrics(enabled=True)
+            assert m.available is False
+
+    def test_exposition_empty_when_prometheus_absent(self) -> None:
+        with patch.object(_tel_module, "_HAS_PROMETHEUS", False):
+            m = KyroMetrics(enabled=True)
+            assert m.exposition() == ""
+
+
+# ---------------------------------------------------------------------------
+# Sprint 16: KyroMetrics — enabled path (prometheus-client present)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not _HAS_PROMETHEUS, reason="prometheus-client not installed")
+class TestKyroMetricsEnabled:
+    def test_available_true_when_enabled(self) -> None:
+        m = KyroMetrics(enabled=True)
+        assert m.available is True
+
+    def test_exposition_non_empty(self) -> None:
+        m = KyroMetrics(enabled=True)
+        text = m.exposition()
+        assert isinstance(text, str)
+        assert len(text) > 0
+
+    def test_record_step_does_not_raise(self) -> None:
+        m = KyroMetrics(enabled=True)
+        m.record_step("rerank", 5.0)  # must not raise
+
+    def test_inc_query_does_not_raise(self) -> None:
+        m = KyroMetrics(enabled=True)
+        m.inc_query("aggregation")
+
+    def test_inc_error_does_not_raise(self) -> None:
+        m = KyroMetrics(enabled=True)
+        m.inc_error("generate")
+
+    def test_inc_cache_hit_does_not_raise(self) -> None:
+        m = KyroMetrics(enabled=True)
+        m.inc_cache_hit()
+
+
+# ---------------------------------------------------------------------------
+# Sprint 16: KyroTracer
+# ---------------------------------------------------------------------------
+
+
+class TestKyroTracerDisabled:
+    def test_available_false_when_otel_absent(self) -> None:
+        with patch.object(_tel_module, "_HAS_OTEL", False):
+            t = KyroTracer(endpoint="http://localhost:4317")
+            assert t.available is False
+
+    def test_available_false_when_no_endpoint(self) -> None:
+        t = KyroTracer(endpoint="")
+        assert t.available is False
+
+    def test_start_span_returns_context_manager_when_unavailable(self) -> None:
+        t = KyroTracer(endpoint="")
+        ctx = t.start_span("test_span")
+        with ctx:
+            pass  # must not raise
+
+    def test_available_false_without_otel(self) -> None:
+        with patch.object(_tel_module, "_HAS_OTEL", False):
+            t = KyroTracer(endpoint="http://localhost:4317", service_name="kyro")
+            assert not t.available
+
+
+# ---------------------------------------------------------------------------
+# Sprint 16: get_metrics() singleton
+# ---------------------------------------------------------------------------
+
+
+class TestGetMetricsSingleton:
+    def setup_method(self) -> None:
+        _tel_module._metrics = None  # reset singleton before each test
+
+    def teardown_method(self) -> None:
+        _tel_module._metrics = None  # clean up
+
+    def test_get_metrics_returns_kyro_metrics(self) -> None:
+        m = get_metrics()
+        assert isinstance(m, KyroMetrics)
+
+    def test_get_metrics_singleton_same_object(self) -> None:
+        m1 = get_metrics()
+        m2 = get_metrics()
+        assert m1 is m2
+
+    def test_get_metrics_disabled_when_otel_disabled(self) -> None:
+        stub_settings = MagicMock()
+        stub_settings.otel_enabled = False
+        with patch("konjoai.telemetry.get_metrics") as mock_gm:
+            mock_gm.return_value = KyroMetrics(enabled=False)
+            m = mock_gm()
+        assert not m.available
+
+
+# ---------------------------------------------------------------------------
+# Sprint 16: get_tracer() singleton
+# ---------------------------------------------------------------------------
+
+
+class TestGetTracerSingleton:
+    def setup_method(self) -> None:
+        _tel_module._tracer = None
+
+    def teardown_method(self) -> None:
+        _tel_module._tracer = None
+
+    def test_get_tracer_returns_kyro_tracer(self) -> None:
+        t = get_tracer()
+        assert isinstance(t, KyroTracer)
+
+    def test_get_tracer_singleton_same_object(self) -> None:
+        t1 = get_tracer()
+        t2 = get_tracer()
+        assert t1 is t2
+
+
+# ---------------------------------------------------------------------------
+# Sprint 16: record_pipeline_metrics
+# ---------------------------------------------------------------------------
+
+
+class TestRecordPipelineMetrics:
+    def test_noop_when_enabled_false(self) -> None:
+        tel = PipelineTelemetry()
+        tel.record("hybrid_search", 10.0)
+        # Must not raise; metrics instance not created at all
+        record_pipeline_metrics(tel, "retrieval", enabled=False)
+
+    def test_calls_inc_query_with_intent(self) -> None:
+        tel = PipelineTelemetry()
+        mock_m = MagicMock(spec=KyroMetrics)
+        with patch("konjoai.telemetry.get_metrics", return_value=mock_m):
+            record_pipeline_metrics(tel, "aggregation", enabled=True)
+        mock_m.inc_query.assert_called_once_with("aggregation")
+
+    def test_calls_record_step_per_step(self) -> None:
+        tel = PipelineTelemetry()
+        tel.record("route", 1.0)
+        tel.record("rerank", 5.0)
+        tel.record("generate", 50.0)
+        mock_m = MagicMock(spec=KyroMetrics)
+        with patch("konjoai.telemetry.get_metrics", return_value=mock_m):
+            record_pipeline_metrics(tel, "retrieval", enabled=True)
+        assert mock_m.record_step.call_count == 3
+
+    def test_default_intent_is_retrieval(self) -> None:
+        tel = PipelineTelemetry()
+        mock_m = MagicMock(spec=KyroMetrics)
+        with patch("konjoai.telemetry.get_metrics", return_value=mock_m):
+            record_pipeline_metrics(tel, enabled=True)
+        mock_m.inc_query.assert_called_once_with("retrieval")
+
+    def test_empty_telemetry_no_step_calls(self) -> None:
+        tel = PipelineTelemetry()
+        mock_m = MagicMock(spec=KyroMetrics)
+        with patch("konjoai.telemetry.get_metrics", return_value=mock_m):
+            record_pipeline_metrics(tel, enabled=True)
+        mock_m.record_step.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Sprint 16: _HAS_PROMETHEUS / _HAS_OTEL module flags
+# ---------------------------------------------------------------------------
+
+
+class TestModuleFlags:
+    def test_has_prometheus_is_bool(self) -> None:
+        assert isinstance(_HAS_PROMETHEUS, bool)
+
+    def test_has_otel_is_bool(self) -> None:
+        assert isinstance(_HAS_OTEL, bool)

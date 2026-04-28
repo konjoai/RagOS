@@ -73,13 +73,14 @@ konjoai status            Show collection stats
 
 ## API
 
-| Method | Path       | Description                        |
-|--------|------------|------------------------------------|
-| POST   | /ingest    | Ingest a file or directory         |
-| POST   | /query     | RAG query with optional decomposition + CRAG + Self-RAG reflective critique |
+| Method | Path         | Description                        |
+|--------|--------------|------------------------------------|
+| POST   | /ingest      | Ingest a file or directory         |
+| POST   | /query       | RAG query with optional decomposition + CRAG + Self-RAG reflective critique |
 | POST   | /agent/query | Bounded ReAct-style agent query with step trace (`steps[]`) |
-| POST   | /eval      | RAGAS evaluation over QA samples   |
-| GET    | /health    | Collection health + document count |
+| POST   | /eval        | RAGAS evaluation over QA samples   |
+| GET    | /health      | Collection health + document count |
+| GET    | /metrics     | Prometheus exposition (requires `otel_enabled=true` + `pip install prometheus-client`) |
 
 Docs at `http://localhost:8000/docs` after `konjoai serve`.
 

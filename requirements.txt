@@ -32,3 +32,8 @@ click>=8.1.0
 # Evaluation (optional — heavy deps; install with: pip install ragas datasets)
 # ragas>=0.1.0
 # datasets>=2.15.0
+
+# Observability (optional — Sprint 16; install with: pip install prometheus-client opentelemetry-sdk)
+# prometheus-client>=0.19
+# opentelemetry-sdk>=1.20
+# opentelemetry-exporter-otlp-proto-grpc>=1.20

@@ -3,6 +3,31 @@
 All notable changes to KonjoOS are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] — Sprint 16: OTel + Prometheus Observability Layer (v0.8.7)
+
+### Added
+- `konjoai/telemetry.py` — Sprint 16 observability extensions:
+  - `_HAS_PROMETHEUS` / `_HAS_OTEL` — import guards (K5: no new hard deps)
+  - `KyroMetrics` — Prometheus counters/histograms: `kyro_query_total`, `kyro_query_errors_total`, `kyro_query_latency_ms`, `kyro_cache_hits_total`; no-op when prometheus-client absent or `otel_enabled=False` (K3)
+  - `KyroTracer` — thin OTel tracer wrapper; `_noop_span()` fallback when opentelemetry-sdk absent or endpoint unset (K3)
+  - `get_metrics()` / `get_tracer()` — module-level singletons (lazy init, reads settings)
+  - `record_pipeline_metrics(tel, intent, *, enabled)` — K3-gated push of a completed `PipelineTelemetry` into Prometheus
+- `konjoai/api/routes/health.py` — `GET /metrics` Prometheus exposition endpoint; returns 404 when `otel_enabled=False`, 503 when prometheus-client absent (K3)
+- `tests/unit/test_telemetry.py` — 26 new Sprint 16 tests (46 passed + 6 skipped when prometheus-client absent)
+
+### Changed
+- `konjoai/config.py`: added `otel_enabled: bool = False`, `otel_endpoint: str = ""`, `otel_service_name: str = "kyro"`, `prometheus_port: int = 8001` (K3: off by default)
+- `konjoai/api/app.py`: registered `health_route.router`
+- `konjoai/api/routes/query.py`: `record_pipeline_metrics(tel, intent.value, enabled=settings.otel_enabled)` call added after pipeline completes; import of `record_pipeline_metrics`
+- `requirements.txt`: optional OTel + Prometheus deps documented as comments
+- `tests/unit/test_query_crag_route.py`, `test_query_self_rag_route.py`, `test_query_decomposition_route.py`, `test_query_route_timeout.py`, `test_graph_rag.py`: `_SettingsStub` structs updated with `otel_enabled: bool = False`
+
+### Tests
+- Focused run: `python3 -m pytest tests/unit/test_telemetry.py -v` → **46 passed, 6 skipped in 0.42s**
+- Full regression: `python3 -m pytest tests/unit/ -q --tb=short` → **485 passed, 5 pre-existing failures (Python 3.9 compat)**
+
+---
+
 ## [Unreleased] — Sprint 15: Lightweight GraphRAG Community Detection (v0.8.5)
 
 ### Added

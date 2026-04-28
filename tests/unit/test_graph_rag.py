@@ -395,6 +395,7 @@ class _SettingsStubGraphRAG:
     enable_graph_rag: bool = False
     graph_rag_max_communities: int = 5
     graph_rag_similarity_threshold: float = 0.3
+    otel_enabled: bool = False
 
 
 @dataclass
@@ -417,6 +418,7 @@ class _SettingsStubGraphRAGEnabled:
     enable_graph_rag: bool = True
     graph_rag_max_communities: int = 3
     graph_rag_similarity_threshold: float = 0.3
+    otel_enabled: bool = False
 
 
 from fastapi import FastAPI

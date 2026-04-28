@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 
 from konjoai.api.schemas import QueryRequest, QueryResponse, SourceDoc
 from konjoai.config import get_settings
-from konjoai.telemetry import PipelineTelemetry, timed
+from konjoai.telemetry import PipelineTelemetry, record_pipeline_metrics, timed
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/query", tags=["query"])
@@ -401,6 +401,9 @@ async def query(req: QueryRequest, request: Request) -> QueryResponse:  # noqa: 
             decomposition_synthesis_hint=decomposition_synthesis_hint,
             graph_rag_communities=graph_rag_communities,
         )
+        # ── Prometheus metrics (Sprint 16; K3: no-op when otel_enabled=False or absent) ─
+        record_pipeline_metrics(tel, intent.value, enabled=settings.otel_enabled)
+
         # Cache store (after full pipeline; K3: no-op when cache_enabled=False)
         if q_vec is not None:
             from konjoai.cache import get_semantic_cache

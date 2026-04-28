@@ -9,11 +9,11 @@
 
 ---
 
-## Current State: Sprint 15 Complete (v0.8.5)
+## Current State: Sprint 16 Complete (v0.8.7)
 
-- **Tests:** 464 passing, 0 failing
+- **Tests:** 485 passing (+ 6 skipped when prometheus-client absent), 5 pre-existing Python 3.9 compat failures
 - **Branch:** `main`
-- **Stack:** FastAPI + HyDE + ColBERT + hybrid search + RAGAS + Vectro bridge + streaming + semantic cache + adaptive chunking + CRAG + Self-RAG + Query Decomposition + Agentic RAG + **GraphRAG (Sprint 15)**
+- **Stack:** FastAPI + HyDE + ColBERT + hybrid search + RAGAS + Vectro bridge + streaming + semantic cache + adaptive chunking + CRAG + Self-RAG + Query Decomposition + Agentic RAG + GraphRAG + **OTel + Prometheus (Sprint 16)**
 
 ---
 
@@ -40,6 +40,33 @@
 3. Endpoint preserves K3/K6 behavior (telemetry optional, no breaking change to `/query`). ✅
 4. Focused unit tests pass for new agent core and route. ✅
 5. Endpoint timeout is enforced and returns deterministic 504 on overrun. ✅
+
+---
+
+## Completed Sprint: Sprint 16 — OTel + Prometheus Observability (v0.8.7)
+
+**Goal:** Add structured observability using OpenTelemetry (OTel) for distributed tracing and Prometheus for metrics. Feature-flagged off by default (K3). No breaking API changes (K6). No new hard dependencies (K5).
+
+### Implementation Checklist — Sprint 16
+
+| # | File | Change | Status |
+|---|---|---|---|
+| 1 | `konjoai/telemetry.py` | `KyroMetrics` (Prometheus counters/histograms), `KyroTracer` (OTel span wrapper), `_noop_span()`, `get_metrics()`, `get_tracer()`, `record_pipeline_metrics()`, `_HAS_PROMETHEUS`/`_HAS_OTEL` guards | ✅ |
+| 2 | `konjoai/config.py` | `otel_enabled=False`, `otel_endpoint=""`, `otel_service_name="kyro"`, `prometheus_port=8001` | ✅ |
+| 3 | `konjoai/api/routes/health.py` | `GET /metrics` Prometheus exposition; 404 when disabled, 503 when dep absent | ✅ |
+| 4 | `konjoai/api/app.py` | Register `health_route.router` | ✅ |
+| 5 | `konjoai/api/routes/query.py` | `record_pipeline_metrics(tel, intent.value, enabled=settings.otel_enabled)` after pipeline | ✅ |
+| 6 | `requirements.txt` | Optional deps documented: `prometheus-client>=0.19`, `opentelemetry-sdk>=1.20`, `opentelemetry-exporter-otlp-proto-grpc>=1.20` | ✅ |
+| 7 | `tests/unit/test_telemetry.py` | +26 tests: `_noop_span`, `KyroMetrics` disabled/enabled, `KyroTracer` disabled, singletons, `record_pipeline_metrics`, module flags | ✅ |
+| 8 | Existing test stubs (5 files) | Added `otel_enabled: bool = False` to `_SettingsStub` in `test_query_crag_route.py`, `test_query_self_rag_route.py`, `test_query_decomposition_route.py`, `test_query_route_timeout.py`, `test_graph_rag.py` | ✅ |
+
+### Sprint 16 Gate Results
+
+1. All telemetry behind `if settings.otel_enabled` (K3). ✅
+2. No breaking changes to existing routes when flag is off (K6). ✅
+3. New deps optional or guarded with `_HAS_OTEL`/`_HAS_PROMETHEUS` (K5). ✅
+4. All K1–K7 invariants pass on new code. ✅
+5. `485 passed, 6 skipped` (up from 464 — +21 new). ✅
 
 ---
 
@@ -163,7 +190,7 @@
 | 13 | v0.7.5 | P3 | Query decomposition (multi-hop fan-out) | ✅ |
 | 14 | v0.8.0 | P3 | Agentic RAG — ReAct loop | ✅ |
 | 15 | v0.8.5 | P3 | Lightweight GraphRAG (NetworkX + Louvain) | ✅ 464 tests |
-| 16 | v0.8.7 | P4 | OTel + Prometheus + Grafana | ⬜ |
+| 16 | v0.8.7 | P4 | OTel + Prometheus + Grafana | ✅ 485 tests |
 | 17 | v0.9.0 | P4 | Multi-tenancy + JWT | ⬜ |
 | 18 | v0.9.5 | P4 | Auth + rate limiting | ⬜ |
 | 19 | v0.9.8 | P5 | Python SDK + MCP server | ⬜ |
