@@ -592,6 +592,68 @@
 
   /* hide scrollbar on terminals */
   .term::-webkit-scrollbar { width: 0; height: 0; }
+
+  /* ── Live-server banner ──────────────────────────────────────────── */
+  .live-banner {
+    position: sticky; top: 60px; z-index: 90;
+    margin: 0 auto 0; padding: 10px 18px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(7,8,13,0.85);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    font-family: var(--mono); font-size: 13px;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    flex-wrap: wrap;
+    transition: background 0.4s ease, color 0.4s ease;
+  }
+  .live-banner.offline { color: var(--warm); }
+  .live-banner.online  {
+    color: var(--hit);
+    background: linear-gradient(180deg, rgba(46,204,113,0.10), rgba(7,8,13,0.85));
+    border-bottom-color: rgba(46,204,113,0.3);
+  }
+  .live-banner code {
+    background: rgba(255,255,255,0.05);
+    padding: 2px 8px; border-radius: 6px;
+    color: var(--ink);
+  }
+  .live-banner .status-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--warm); display: inline-block;
+    box-shadow: 0 0 10px var(--warm);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  .live-banner.online .status-dot {
+    background: var(--hit); box-shadow: 0 0 10px var(--hit);
+  }
+  @keyframes pulse-dot {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%     { opacity: 0.5; transform: scale(0.8); }
+  }
+  .source-badge {
+    display: inline-block;
+    font-family: var(--mono); font-size: 10px;
+    padding: 2px 7px; border-radius: 999px;
+    margin-left: 8px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    border: 1px solid;
+  }
+  .source-badge.live {
+    color: var(--hit); border-color: rgba(46,204,113,0.5);
+    background: rgba(46,204,113,0.10);
+  }
+  .source-badge.sim {
+    color: var(--warm); border-color: rgba(246,211,91,0.4);
+    background: rgba(246,211,91,0.07);
+  }
+  .seeded-list {
+    margin-top: 14px; border-top: 1px dashed rgba(255,255,255,0.06);
+    padding-top: 12px; font-family: var(--mono); font-size: 12px;
+    color: var(--dim); max-height: 0; overflow: hidden;
+    transition: max-height 0.5s ease;
+  }
+  .seeded-list.show { max-height: 320px; overflow-y: auto; }
+  .seeded-list li { padding: 3px 0; list-style: none; }
+  .seeded-list li::before { content: "•  "; color: var(--hit-2); }
 </style>
 </head>
 <body>
@@ -614,6 +676,16 @@
   </div>
   <a class="nav-cta" href="https://github.com/konjoai/kyro" target="_blank" rel="noopener">GitHub →</a>
 </nav>
+
+<!-- ── Live-server banner ─────────────────────────────────────── -->
+<div id="liveBanner" class="live-banner offline" role="status" aria-live="polite">
+  <span class="status-dot"></span>
+  <span id="liveBannerText">
+    Demo is running on <strong>simulated values</strong>.
+    Run <code>python demo/server.py</code> from the repo root to drive these widgets with the real
+    <code>konjoai.cache.SemanticCache</code> — real cosine similarity, real timings, real LRU.
+  </span>
+</div>
 
 <!-- ── Hero ────────────────────────────────────────────────────── -->
 <header class="hero">
@@ -775,14 +847,19 @@
         </div>
       </div>
       <div class="cache-meter" id="cacheMeter">
+        <div class="cache-line">
+          <span>data source</span>
+          <span class="v"><span id="m-source-badge" class="source-badge sim">estimated</span></span>
+        </div>
         <div class="cache-line"><span>memory size</span><span class="v" id="m-size">0 questions</span></div>
-        <div class="cache-line"><span>match line</span><span class="v" style="color:var(--hit-2)">95% similar</span></div>
+        <div class="cache-line"><span>match line</span><span class="v" id="m-thresh" style="color:var(--hit-2)">95% similar</span></div>
         <div class="cache-line"><span>last query</span><span class="v" id="m-last">—</span></div>
         <div class="cache-line"><span>question match score</span><span class="v" id="m-sim">—</span></div>
         <div class="cache-line"><span>hits / misses</span><span class="v" id="m-hm">0 / 0</span></div>
         <div class="cache-line"><span>repeat-rate</span><span class="v" id="m-rate">0%</span></div>
-        <div class="sim-bar"><span id="m-bar"></span><span class="threshold" aria-hidden="true"></span></div>
+        <div class="sim-bar"><span id="m-bar"></span><span class="threshold" id="m-threshold-mark" aria-hidden="true"></span></div>
         <div class="verdict" id="m-verdict">Awaiting your first question…</div>
+        <ul class="seeded-list" id="seededList" aria-label="seeded entries"></ul>
       </div>
     </div>
     <div class="saved-banner">
@@ -879,11 +956,15 @@
         </div>
       </div>
       <div class="cache-meter" id="tryMeter">
+        <div class="cache-line">
+          <span>data source</span>
+          <span class="v"><span id="t-source-badge" class="source-badge sim">estimated</span></span>
+        </div>
         <div class="cache-line"><span>your question</span><span class="v" id="t-q">—</span></div>
         <div class="cache-line"><span>closest remembered question</span><span class="v" id="t-best">—</span></div>
         <div class="cache-line"><span>question match score</span><span class="v" id="t-sim">—</span></div>
         <div class="cache-line"><span>verdict</span><span class="v" id="t-verdict">—</span></div>
-        <div class="sim-bar"><span id="t-bar"></span><span class="threshold" aria-hidden="true"></span></div>
+        <div class="sim-bar"><span id="t-bar"></span><span class="threshold" id="t-threshold-mark" aria-hidden="true"></span></div>
         <div class="verdict" id="t-final">Type a question and press <kbd>Enter</kbd>.</div>
       </div>
     </div>
@@ -1060,6 +1141,125 @@
 </footer>
 
 <script>
+  // ── Live demo-server bridge ───────────────────────────────────────
+  // Probe the demo server on load. If it's reachable, hand the interactive
+  // widgets over to the real konjoai.cache.SemanticCache via /api/cache/ask
+  // and /api/cache/probe. If not, we keep the local simulation so the page
+  // still tells the same story — just without real timings and real cosines.
+  const SERVER_CANDIDATES = [
+    // If the page is being served *by* server.py, same-origin wins outright.
+    location.origin && /^https?:/.test(location.origin) ? location.origin : null,
+    'http://127.0.0.1:8765',
+    'http://localhost:8765',
+  ].filter(Boolean);
+
+  const live = {
+    on: false,
+    base: null,
+    threshold: 0.95,
+    seedPairs: [],
+  };
+
+  async function probeServer() {
+    for (const base of SERVER_CANDIDATES) {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 1200);
+        const r = await fetch(base + '/api/health', { signal: ctrl.signal });
+        clearTimeout(t);
+        if (!r.ok) continue;
+        const d = await r.json();
+        if (d && d.real_kyro_cache === true) {
+          live.on = true;
+          live.base = base;
+          break;
+        }
+      } catch (_e) { /* try next */ }
+    }
+    updateBanner();
+    if (live.on) {
+      // One-shot seed so first-time visitors see real entries to hit.
+      try {
+        const seedResp = await fetch(live.base + '/api/cache/seed', { method: 'POST' });
+        const seed = await seedResp.json();
+        if (seed && Array.isArray(seed.pairs)) live.seedPairs = seed.pairs;
+      } catch (_e) {}
+      await refreshLiveStats();
+      renderSeededList();
+      // Both interactive widgets now read from real kyro state.
+      document.querySelectorAll('.source-badge.sim').forEach(b => {
+        b.textContent = 'live';
+        b.classList.remove('sim');
+        b.classList.add('live');
+      });
+    }
+  }
+
+  function updateBanner() {
+    const el = document.getElementById('liveBanner');
+    const txt = document.getElementById('liveBannerText');
+    if (live.on) {
+      el.classList.remove('offline');
+      el.classList.add('online');
+      txt.innerHTML =
+        `Live · running real <code>konjoai.cache.SemanticCache</code> at ` +
+        `<code>${live.base}</code>. Every score on this page is a real cosine; ` +
+        `every latency is from <code>time.perf_counter()</code>.`;
+    } else {
+      el.classList.add('offline');
+      el.classList.remove('online');
+      txt.innerHTML =
+        `Demo is running on <strong>simulated values</strong>. ` +
+        `Run <code>python demo/server.py</code> from the repo root to drive these widgets ` +
+        `with the real <code>konjoai.cache.SemanticCache</code> — real cosine similarity, ` +
+        `real timings, real LRU.`;
+    }
+  }
+
+  async function refreshLiveStats() {
+    if (!live.on) return null;
+    try {
+      const r = await fetch(live.base + '/api/cache/stats');
+      const s = await r.json();
+      live.threshold = s.threshold ?? live.threshold;
+      // Threshold marker in the bars.
+      document.querySelectorAll('.sim-bar .threshold').forEach(t => {
+        t.style.left = (live.threshold * 100).toFixed(1) + '%';
+      });
+      // Threshold label in the smart-memory panel.
+      const tEl = document.getElementById('m-thresh');
+      if (tEl) tEl.textContent = `${Math.round(live.threshold * 100)}% similar`;
+      // Update "memory size" line + counters from real stats.
+      document.getElementById('m-size').textContent = `${s.size} question${s.size===1?'':'s'}`;
+      document.getElementById('m-hm').textContent = `${s.total_hits} / ${s.total_misses}`;
+      const total = s.total_hits + s.total_misses;
+      document.getElementById('m-rate').textContent = total ? Math.round(100 * s.total_hits / total) + '%' : '0%';
+      animateNumber('time-saved',    v => (v/1000).toFixed(1) + 's', s.time_saved_ms);
+      animateNumber('calls-saved',   v => Math.round(v).toString(),    s.calls_avoided);
+      animateNumber('dollars-saved', v => '$' + v.toFixed(2),          s.dollars_saved);
+      return s;
+    } catch (_e) { return null; }
+  }
+
+  function renderSeededList() {
+    if (!live.on || !live.seedPairs.length) return;
+    const ul = document.getElementById('seededList');
+    if (!ul) return;
+    ul.innerHTML = live.seedPairs
+      .map(p => `<li>${escapeHTML(p.question)}</li>`)
+      .join('');
+    ul.classList.add('show');
+    // Friendly nudge in the verdict pill.
+    const v = document.getElementById('m-verdict');
+    v.className = 'verdict';
+    v.innerHTML = `Cache pre-seeded with <strong>${live.seedPairs.length}</strong> questions. Try a paraphrase below ↓`;
+  }
+
+  function escapeHTML(s) {
+    return String(s).replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+
   // ── Reveal-on-scroll ───────────────────────────────────────────────
   const io = new IntersectionObserver((entries) => {
     for (const e of entries) {
@@ -1162,6 +1362,7 @@
     document.getElementById('streamBtn').disabled = false;
   }
   window.addEventListener('load', () => setTimeout(runStream, 500));
+  window.addEventListener('load', () => probeServer());
 
   // ── Smart memory visualizer ──────────────────────────────────────
   const STEMS = {
@@ -1224,16 +1425,17 @@
 
   function setPreset(s) { document.getElementById('q').value = s; runCache(); }
 
-  function resetCache() {
+  async function resetCache() {
+    // Local sim state.
     cache.length = 0; hits = 0; misses = 0;
     timeSavedMs = 0; callsAvoided = 0; dollarsSaved = 0;
     document.getElementById('q').value = '';
-    document.getElementById('m-size').textContent = '0 questions';
     document.getElementById('m-last').textContent = '—';
     document.getElementById('m-sim').textContent  = '—';
-    document.getElementById('m-hm').textContent   = '0 / 0';
-    document.getElementById('m-rate').textContent = '0%';
     document.getElementById('m-bar').style.width  = '0%';
+    _animState['time-saved'] = 0;
+    _animState['calls-saved'] = 0;
+    _animState['dollars-saved'] = 0;
     document.getElementById('time-saved').textContent = '0.0s';
     document.getElementById('calls-saved').textContent = '0';
     document.getElementById('dollars-saved').textContent = '$0.00';
@@ -1241,6 +1443,22 @@
     v.textContent = 'Memory cleared. Ask away.';
     v.className = 'verdict';
     document.getElementById('cacheMeter').classList.remove('flash-hit','flash-miss');
+
+    if (live.on) {
+      try {
+        await fetch(live.base + '/api/cache/reset', { method: 'POST' });
+        // Re-seed so users can immediately try paraphrases again.
+        const seedResp = await fetch(live.base + '/api/cache/seed', { method: 'POST' });
+        const seed = await seedResp.json();
+        if (seed && Array.isArray(seed.pairs)) live.seedPairs = seed.pairs;
+        await refreshLiveStats();
+        renderSeededList();
+      } catch (_e) {}
+    } else {
+      document.getElementById('m-size').textContent = '0 questions';
+      document.getElementById('m-hm').textContent   = '0 / 0';
+      document.getElementById('m-rate').textContent = '0%';
+    }
   }
 
   function showThinking() {
@@ -1249,9 +1467,73 @@
     v.innerHTML = `Asking the LLM <span class="thinking-dots"><span></span><span></span><span></span></span>`;
   }
 
-  async function runCache() {
-    const q = document.getElementById('q').value.trim();
-    if (!q) return;
+  // Live-mode runner: round-trip to the demo server so every score is a real
+  // cosine and every latency is from time.perf_counter() inside Python.
+  async function runCacheLive(q) {
+    const meter = document.getElementById('cacheMeter');
+    meter.classList.remove('flash-hit','flash-miss');
+    document.getElementById('m-last').textContent = q.length > 38 ? q.slice(0,38) + '…' : q;
+    document.getElementById('m-bar').style.width = '0%';
+    document.getElementById('m-sim').textContent = '—';
+
+    const verdictEl = document.getElementById('m-verdict');
+    showThinking();
+
+    let payload;
+    try {
+      const r = await fetch(live.base + '/api/cache/ask', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({ question: q }),
+      });
+      payload = await r.json();
+    } catch (e) {
+      verdictEl.className = 'verdict miss';
+      verdictEl.textContent = 'Server unreachable — try `python demo/server.py`.';
+      return;
+    }
+
+    const score = payload.score_pct ?? 0;
+    const finalPct = Math.max(0, Math.min(100, score));
+    requestAnimationFrame(() => {
+      document.getElementById('m-bar').style.width = finalPct.toFixed(1) + '%';
+    });
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / 700);
+      const eased = 1 - Math.pow(1 - t, 3);
+      document.getElementById('m-sim').textContent = (finalPct * eased).toFixed(1) + '%';
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    await new Promise(r => setTimeout(r, 750));
+
+    if (payload.hit) {
+      verdictEl.className = 'verdict hit';
+      verdictEl.innerHTML =
+        `✓ HIT  ·  cosine ${(payload.score*100).toFixed(1)}%  ·  ` +
+        `latency <strong>${payload.latency_ms.toFixed(2)} ms</strong>  ` +
+        `<span class="source-badge live">live</span><br/>` +
+        `<span style="color:var(--ink)">${escapeHTML(payload.cached_answer)}</span><br/>` +
+        `<span style="color:var(--dim);font-weight:400;font-size:12px">matched: "${escapeHTML(payload.matched_question)}"</span>`;
+      meter.classList.add('flash-hit');
+    } else {
+      verdictEl.className = 'verdict miss';
+      const simStr = payload.score_pct != null ? payload.score_pct.toFixed(1) + '%' : '—';
+      verdictEl.innerHTML =
+        `✕ MISS  ·  best cosine ${simStr}  ·  ` +
+        `latency <strong>${payload.latency_ms.toFixed(0)} ms</strong>  ` +
+        `<span class="source-badge live">live</span><br/>` +
+        `<span style="color:var(--ink)">stored: "${escapeHTML(payload.cached_answer)}"</span>`;
+      meter.classList.add('flash-miss');
+    }
+
+    // Refresh the side stats from the live server's actual counters.
+    await refreshLiveStats();
+  }
+
+  // Local-sim runner — what the page falls back to when the server is down.
+  async function runCacheSim(q) {
     const meter = document.getElementById('cacheMeter');
     meter.classList.remove('flash-hit','flash-miss');
 
@@ -1265,29 +1547,20 @@
     const verdictEl = document.getElementById('m-verdict');
 
     document.getElementById('m-last').textContent = q.length > 38 ? q.slice(0,38) + '…' : q;
-
-    // Animate similarity bar from 0 → final score, then resolve.
     document.getElementById('m-bar').style.width = '0%';
     document.getElementById('m-sim').textContent = '—';
 
-    if (!isHit) {
-      // Show "thinking" → resolve as miss
-      showThinking();
-      await new Promise(r => setTimeout(r, 700));
-    }
+    if (!isHit) { showThinking(); await new Promise(r => setTimeout(r, 700)); }
 
     const finalPct = Math.max(0, Math.min(1, cache.length ? bestSim : 0)) * 100;
     requestAnimationFrame(() => {
       document.getElementById('m-bar').style.width = finalPct.toFixed(1) + '%';
     });
-
-    // Animate the percentage number ticking up.
     const start = performance.now();
     const tick = (now) => {
       const t = Math.min(1, (now - start) / 700);
       const eased = 1 - Math.pow(1 - t, 3);
-      const cur = Math.round(finalPct * eased);
-      document.getElementById('m-sim').textContent = cache.length ? (cur + '%') : '—';
+      document.getElementById('m-sim').textContent = cache.length ? Math.round(finalPct * eased) + '%' : '—';
       if (t < 1) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -1301,7 +1574,10 @@
       callsAvoided += 1;
       dollarsSaved += COST_PER_CALL;
       verdictEl.className = 'verdict hit';
-      verdictEl.innerHTML = `✓ HIT  ·  match ${(bestSim*100).toFixed(1)}%  ·  <span style="color:var(--ink)">${answer}</span>`;
+      verdictEl.innerHTML =
+        `✓ HIT  ·  match ${(bestSim*100).toFixed(1)}%  ` +
+        `<span class="source-badge sim">estimated</span><br/>` +
+        `<span style="color:var(--ink)">${escapeHTML(answer)}</span>`;
       meter.classList.add('flash-hit');
     } else {
       misses++;
@@ -1309,11 +1585,13 @@
       cache.push({ question: q, vec: v, answer });
       verdictEl.className = 'verdict miss';
       const simStr = cache.length > 1 ? (bestSim*100).toFixed(1) + '%' : '—';
-      verdictEl.innerHTML = `✕ MISS  ·  best match ${simStr}  ·  <span style="color:var(--ink)">stored: "${answer}"</span>`;
+      verdictEl.innerHTML =
+        `✕ MISS  ·  best match ${simStr}  ` +
+        `<span class="source-badge sim">estimated</span><br/>` +
+        `<span style="color:var(--ink)">stored: "${escapeHTML(answer)}"</span>`;
       meter.classList.add('flash-miss');
     }
 
-    // Update the side stats.
     document.getElementById('m-size').textContent = `${cache.length} question${cache.length===1?'':'s'}`;
     document.getElementById('m-hm').textContent = `${hits} / ${misses}`;
     const total = hits + misses;
@@ -1322,6 +1600,13 @@
     animateNumber('time-saved',   v => (v/1000).toFixed(1) + 's',     timeSavedMs);
     animateNumber('calls-saved',  v => Math.round(v).toString(),       callsAvoided);
     animateNumber('dollars-saved',v => '$' + v.toFixed(2),             dollarsSaved);
+  }
+
+  async function runCache() {
+    const q = document.getElementById('q').value.trim();
+    if (!q) return;
+    if (live.on) return runCacheLive(q);
+    return runCacheSim(q);
   }
 
   // Smooth-tick a counter to a target.
@@ -1344,16 +1629,87 @@
 
   // ── Try-it-yourself widget ──────────────────────────────────────
   function setTry(s) { document.getElementById('q2').value = s; runTry(); }
-  async function runTry() {
-    const q = document.getElementById('q2').value.trim();
-    if (!q) return;
+
+  async function runTryLive(q) {
+    document.getElementById('t-q').textContent =
+      q.length > 36 ? q.slice(0,36) + '…' : q;
+    document.getElementById('t-bar').style.width = '0%';
+    document.getElementById('t-sim').textContent = '—';
+    document.getElementById('t-best').textContent = '…';
+    document.getElementById('t-verdict').textContent = 'measuring…';
+    const verdictEl = document.getElementById('t-final');
+    verdictEl.className = 'verdict thinking';
+    verdictEl.innerHTML = `Measuring real cosine on the server <span class="thinking-dots"><span></span><span></span><span></span></span>`;
+
+    let payload;
+    try {
+      const r = await fetch(live.base + '/api/cache/probe', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({ question: q }),
+      });
+      payload = await r.json();
+    } catch (_e) {
+      verdictEl.className = 'verdict miss';
+      verdictEl.textContent = 'Server unreachable.';
+      return;
+    }
+
+    const score = payload.score_pct ?? 0;
+    const finalPct = Math.max(0, Math.min(100, score));
+    const haveCache = payload.size > 0;
+
+    document.getElementById('t-best').textContent =
+      payload.matched_question
+        ? (payload.matched_question.length > 36
+            ? payload.matched_question.slice(0,36) + '…'
+            : payload.matched_question)
+        : '— (memory empty)';
+
+    requestAnimationFrame(() => {
+      document.getElementById('t-bar').style.width = finalPct.toFixed(1) + '%';
+    });
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / 800);
+      const eased = 1 - Math.pow(1 - t, 3);
+      document.getElementById('t-sim').textContent =
+        haveCache ? (finalPct * eased).toFixed(1) + '%' : '—';
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    await new Promise(r => setTimeout(r, 850));
+
+    document.getElementById('t-verdict').textContent =
+      payload.would_hit ? 'HIT (would skip the LLM)' : 'MISS (would call the LLM)';
+
+    if (payload.would_hit) {
+      verdictEl.className = 'verdict hit';
+      verdictEl.innerHTML =
+        `✓ Real cosine ${score.toFixed(1)}% ≥ ${(payload.threshold*100).toFixed(0)}% match line. ` +
+        `Kyro would reuse the answer in ~${payload.embed_ms.toFixed(2)} ms (no LLM call).  ` +
+        `<span class="source-badge live">live</span>`;
+    } else if (!haveCache) {
+      verdictEl.className = 'verdict thinking';
+      verdictEl.textContent = 'Memory is empty — add questions via the smart-memory demo above first.';
+    } else {
+      verdictEl.className = 'verdict miss';
+      const sStr = score.toFixed(1);
+      verdictEl.innerHTML =
+        `✕ Real cosine ${sStr}% &lt; ${(payload.threshold*100).toFixed(0)}% match line. ` +
+        `Kyro would call the LLM and remember the answer.  ` +
+        `<span class="source-badge live">live</span>`;
+    }
+  }
+
+  async function runTrySim(q) {
     const v = vectorize(q);
     let bestSim = -1, bestQ = null;
     cache.forEach(e => {
       const s = cosine(v, e.vec);
       if (s > bestSim) { bestSim = s; bestQ = e.question; }
     });
-    document.getElementById('t-q').textContent   = q.length > 36 ? q.slice(0,36) + '…' : q;
+    document.getElementById('t-q').textContent = q.length > 36 ? q.slice(0,36) + '…' : q;
     document.getElementById('t-best').textContent = bestQ ? (bestQ.length > 36 ? bestQ.slice(0,36) + '…' : bestQ) : '— (memory empty)';
     document.getElementById('t-bar').style.width = '0%';
     document.getElementById('t-sim').textContent = '—';
@@ -1362,7 +1718,6 @@
     requestAnimationFrame(() => {
       document.getElementById('t-bar').style.width = finalPct.toFixed(1) + '%';
     });
-
     const start = performance.now();
     const tick = (now) => {
       const t = Math.min(1, (now - start) / 800);
@@ -1372,21 +1727,28 @@
       if (t < 1) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
-
     await new Promise(r => setTimeout(r, 850));
+
     const isHit = cache.length && bestSim >= THRESH;
     const verdictEl = document.getElementById('t-final');
     document.getElementById('t-verdict').textContent = isHit ? 'HIT (would skip the LLM)' : 'MISS (would call the LLM)';
     if (isHit) {
       verdictEl.className = 'verdict hit';
-      verdictEl.innerHTML = `✓ Kyro would reuse the answer. ~3 ms. No LLM call.`;
+      verdictEl.innerHTML = `✓ Kyro would reuse the answer. ~3 ms. No LLM call.  <span class="source-badge sim">estimated</span>`;
     } else if (cache.length === 0) {
       verdictEl.className = 'verdict thinking';
       verdictEl.textContent = 'Memory is empty — add some questions in the smart-memory demo above first.';
     } else {
       verdictEl.className = 'verdict miss';
-      verdictEl.innerHTML = `✕ Not similar enough. Kyro would ask the LLM and remember it.`;
+      verdictEl.innerHTML = `✕ Not similar enough. Kyro would ask the LLM and remember it.  <span class="source-badge sim">estimated</span>`;
     }
+  }
+
+  async function runTry() {
+    const q = document.getElementById('q2').value.trim();
+    if (!q) return;
+    if (live.on) return runTryLive(q);
+    return runTrySim(q);
   }
 
   // ── Speed dials ──────────────────────────────────────────────────
