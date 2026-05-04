@@ -3,6 +3,43 @@
 All notable changes to KonjoOS are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v1.3.0] — Sprint 23: Async Cache + Singleflight Stampede Protection
+
+### Added
+- `konjoai/cache/async_cache.py` — `AsyncSemanticCache(backend, *, singleflight=True, offload_to_thread=True, tenant_provider=...)`. Async wrapper over any sync backend (`SemanticCache`, `RedisSemanticCache`, or anything quacking like the `_SyncBackend` Protocol) exposing `async lookup`, `async store`, `async invalidate`, `async stats`, plus the new singleflight primitive `async get_or_compute(question, q_vec, compute)`.
+- **Singleflight stampede protection.** Concurrent identical misses across coroutines (and across replicas of the same pod) collapse to **one** `compute` invocation; every other waiter suspends on an `asyncio.Future` keyed by `(tenant_id, normalised_question)` and reads the populated cache the moment the leader finishes. Eliminates the thundering-herd on hot fresh queries that the Sprint-22 Redis fan-out otherwise made worse.
+- **Tenant-scoped in-flight slots.** `_inflight_key(question, tenant)` namespaces the singleflight dict by the Sprint-17 ContextVar tenant so two tenants asking the same string each get their own compute (no cross-tenant leakage and no false collapse).
+- **Error propagation that doesn't strand waiters.** `compute` exceptions raise to the leader **and** every follower; the in-flight slot is freed in a `finally` so the next caller can retry without being blocked by a stale future.
+- `konjoai/cache/__init__.py`: re-exports `AsyncSemanticCache` and `async_wrap` (`async_cache.wrap` factory).
+- New telemetry counters surfaced in `await cache.stats()`: `singleflight_enabled`, `stampedes_collapsed`, `inflight_peak`, `inflight_now` — extends each backend's own stats dict, doesn't replace it.
+- `tests/unit/test_async_cache.py` — 12 new tests:
+  - Pass-through roundtrip (lookup / store / invalidate)
+  - Stats wrapper extends backend stats with the four new counters
+  - **Singleflight collapse: 8 concurrent identical misses → exactly 1 compute call**, all 8 receive the same answer, `stampedes_collapsed == 7`
+  - Cache hit on the second call bypasses the singleflight path entirely (no false-positive collapse counter increment)
+  - **Error propagation: compute exception raises to all 5 waiters, in-flight slot freed**
+  - Retry-after-error path works
+  - Tenant-keyed in-flight: same question across `acme` / `globex` triggers two distinct computes (two in-flight slots, no collapse)
+  - `singleflight=False` → each caller computes independently (the bypass mode)
+  - `offload_to_thread=False` keeps everything on the loop (verified via `monkeypatch` on `asyncio.to_thread`)
+  - `wrap()` factory parity
+
+### Changed
+- `pyproject.toml`, `konjoai/__init__.py`, `helm/kyro/Chart.yaml`, `docs/index.md`, `tests/unit/test_packaging.py`: version bumped `1.2.0 → 1.3.0`.
+
+### Konjo Invariants
+- **K1** (no silent failures): leader exceptions propagate to every waiter via `future.set_exception(exc)` and the slot is freed in `finally` so `lookup` retries are unblocked.
+- **K3** (graceful degradation): `singleflight=False` makes the wrapper a thin async adapter — useful when callers have already deduped upstream. `offload_to_thread=False` skips the thread hop for callers that prefer pure-loop semantics.
+- **K5** (zero new hard deps): pure stdlib `asyncio` — no `aioredis`, no extra synchronisation library.
+- **K6** (backward compatible): purely additive. The synchronous `SemanticCache` and `RedisSemanticCache` contracts and call sites are unchanged.
+- **K7** (multi-tenant safety): the in-flight key namespaces by tenant so a Redis-fan-out singleflight does not leak responses across tenants under stampede.
+
+### Tests
+- Focused: `python3 -m pytest tests/unit/test_async_cache.py -q` → **12 passed in <1s**
+- Full regression: `python3 -m pytest tests/unit/ -q` → **810 passed, 15 skipped** (was 798 — +12 tests; 5 pre-existing Python 3.9 compat failures unchanged)
+
+---
+
 ## [v1.2.0] — Sprint 22: Distributed Semantic Cache (Redis backend)
 
 ### Added

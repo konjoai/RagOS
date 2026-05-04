@@ -9,11 +9,36 @@
 
 ---
 
-## Current State: Sprint 22 Complete — v1.2.0 SHIPPED
+## Current State: Sprint 23 Complete — v1.3.0 SHIPPED
 
-- **Tests:** 798 passing (+ 15 skipped), 5 pre-existing Python 3.9 compat failures
+- **Tests:** 810 passing (+ 15 skipped), 5 pre-existing Python 3.9 compat failures
 - **Branch:** `main`
-- **Stack:** FastAPI + HyDE + ColBERT + hybrid search + RAGAS + Vectro bridge + streaming + **distributed semantic cache (Sprint 22 — v1.2.0, Redis-backed, tenant-namespaced)** + adaptive chunking + CRAG + Self-RAG + Query Decomposition + Agentic RAG + Streaming Agent (Sprint 21 — v1.1.0) + GraphRAG + OTel + Prometheus + Multi-tenancy + JWT + Auth hardening + Rate limiting + Python SDK + MCP server + Helm chart + PyPI + Docs site
+- **Stack:** FastAPI + HyDE + ColBERT + hybrid search + RAGAS + Vectro bridge + streaming + distributed semantic cache (Sprint 22 — Redis-backed, tenant-namespaced) + **async cache + singleflight stampede protection (Sprint 23 — v1.3.0)** + adaptive chunking + CRAG + Self-RAG + Query Decomposition + Agentic RAG + Streaming Agent + GraphRAG + OTel + Prometheus + Multi-tenancy + JWT + Auth hardening + Rate limiting + Python SDK + MCP server + Helm chart + PyPI + Docs site
+
+---
+
+## Completed Sprint: Sprint 23 — Async Cache + Singleflight (v1.3.0)
+
+**Goal:** Eliminate the cache-stampede / thundering-herd on hot fresh queries — the failure mode the Sprint-22 Redis fan-out *worsened* by letting replicas race each other into the LLM. Do it without changing the synchronous backend contract.
+
+### Implementation Checklist — Sprint 23
+
+| # | File | Change | Status |
+|---|---|---|---|
+| 1 | `konjoai/cache/async_cache.py` | `AsyncSemanticCache` async wrapper + `get_or_compute` singleflight primitive; tenant-namespaced in-flight keys; error propagation to all waiters; `wrap()` factory | ✅ |
+| 2 | `konjoai/cache/__init__.py` | Re-export `AsyncSemanticCache` and `async_wrap` | ✅ |
+| 3 | `tests/unit/test_async_cache.py` | 12 tests: pass-through, stampede collapse (8→1), error propagation (5 waiters), retry after error, tenant scoping, singleflight=False bypass, offload_to_thread=False, wrap() parity | ✅ |
+| 4 | `pyproject.toml` + `konjoai/__init__.py` + `helm/kyro/Chart.yaml` + `docs/index.md` + `tests/unit/test_packaging.py` | Version bump 1.2.0 → 1.3.0 | ✅ |
+| 5 | `CHANGELOG.md` + `PLAN.md` | Document the new wrapper, the singleflight invariant, the stampede metric | ✅ |
+
+### Sprint 23 Gate Results
+
+1. **K1**: leader exceptions propagate to every waiter; in-flight slot freed in `finally` so retries proceed. ✅
+2. **K3**: `singleflight=False` and `offload_to_thread=False` are honoured as a thin-adapter mode. ✅
+3. **K5**: pure stdlib `asyncio`. Zero new hard deps. ✅
+4. **K6**: synchronous `SemanticCache` / `RedisSemanticCache` contracts unchanged. ✅
+5. **K7**: in-flight key namespaces by tenant — concurrent same-question requests across tenants never collapse onto each other. ✅
+6. **Tests**: 810 passing (was 798 — +12 new). 15 skipped, 5 pre-existing Py3.9 compat failures unchanged. ✅
 
 ---
 
