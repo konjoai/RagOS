@@ -149,7 +149,11 @@ class TestSingleflightCollapse:
 class TestErrorPropagation:
     @pytest.mark.asyncio
     async def test_compute_exception_propagates_to_every_waiter(self) -> None:
-        cache = AsyncSemanticCache(SemanticCache(max_size=4, threshold=0.95))
+        # offload_to_thread=False keeps all I/O on the event loop so the
+        # five tasks run sequentially before the gate opens — avoids a race
+        # where async.to_thread() lookups complete in arbitrary order and
+        # some tasks miss the singleflight window.
+        cache = AsyncSemanticCache(SemanticCache(max_size=4, threshold=0.95), offload_to_thread=False)
         v = _vec(20)
 
         compute_started = asyncio.Event()
