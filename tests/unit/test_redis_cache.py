@@ -6,8 +6,8 @@ without requiring the optional ``redis`` package to be installed.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 from unittest.mock import patch
 
 import numpy as np
@@ -21,7 +21,6 @@ from konjoai.cache import (
     get_semantic_cache,
 )
 from konjoai.cache.semantic_cache import _reset_cache
-
 
 # ── Fake Redis client ────────────────────────────────────────────────────────
 
@@ -109,7 +108,7 @@ class _FakeRedis:
 class _StubResp:
     answer: str
 
-    def model_copy(self, *, update: dict) -> "_StubResp":  # mimic pydantic
+    def model_copy(self, *, update: dict) -> _StubResp:  # mimic pydantic
         return _StubResp(answer=update.get("answer", self.answer))
 
 

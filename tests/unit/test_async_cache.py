@@ -14,14 +14,14 @@ from __future__ import annotations
 import asyncio
 import threading
 from dataclasses import dataclass
-from typing import Callable
 
 import numpy as np
 import pytest
 
 from konjoai.auth.tenant import _current_tenant_id, set_current_tenant_id
 from konjoai.cache import AsyncSemanticCache, SemanticCache
-from konjoai.cache.async_cache import _inflight_key, wrap as async_wrap
+from konjoai.cache.async_cache import _inflight_key
+from konjoai.cache.async_cache import wrap as async_wrap
 
 
 def _vec(seed: int, dim: int = 16) -> np.ndarray:
@@ -34,7 +34,7 @@ def _vec(seed: int, dim: int = 16) -> np.ndarray:
 class _StubResp:
     answer: str
 
-    def model_copy(self, *, update: dict) -> "_StubResp":
+    def model_copy(self, *, update: dict) -> _StubResp:
         return _StubResp(answer=update.get("answer", self.answer))
 
 
@@ -275,7 +275,7 @@ class TestSingleflightDisabled:
             return _StubResp(answer=f"v{attempts}")
 
         # Fire 3 concurrent identical misses with singleflight off.
-        results = await asyncio.gather(*[
+        await asyncio.gather(*[
             cache.get_or_compute("q", v, compute) for _ in range(3)
         ])
         # All 3 invoked compute.

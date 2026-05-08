@@ -16,7 +16,6 @@ from konjoai.ingest.adaptive_chunker import (
 )
 from konjoai.ingest.loaders import Document
 
-
 # ── QueryComplexityScorer ────────────────────────────────────────────────────
 
 class TestQueryComplexityScorer:

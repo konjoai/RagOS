@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,10 @@ def evaluate(
     - answer_relevancy   ≥ 0.80
     """
     try:
+        import asyncio as _asyncio  # asyncio.sleep yields event loop; safe inside coroutines
+        import threading as _threading  # threading.Lock for cross-loop slot reservation
+        import time as _time
+
         from datasets import Dataset
         from langchain_openai import ChatOpenAI
         from ragas import evaluate as ragas_evaluate
@@ -56,9 +61,6 @@ def evaluate(
             faithfulness,
         )
         from ragas.run_config import RunConfig as _RunConfig
-        import asyncio as _asyncio    # asyncio.sleep yields event loop; safe inside coroutines
-        import threading as _threading  # threading.Lock for cross-loop slot reservation
-        import time as _time
     except ImportError as e:
         raise ImportError(
             "RAGAS and dependencies are required:\n"
@@ -147,7 +149,7 @@ if __name__ == "__main__":
     import json
     import os
     import sys
-    from datetime import datetime, timezone
+    from datetime import datetime
     from pathlib import Path
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -234,7 +236,7 @@ if __name__ == "__main__":
     )
 
     # --- K7: write to timestamped output directory (never overwrite) ---
-    _ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    _ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     run_dir = Path("evals/runs") / f"{_ts}_{args.run_name}"
     run_dir.mkdir(parents=True, exist_ok=False)
 

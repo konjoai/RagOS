@@ -3,7 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Generator as IterGenerator
+from collections.abc import Generator as IterGenerator
+from datetime import UTC
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -65,7 +66,6 @@ async def query(  # noqa: C901
         """Inner pipeline coroutine — bounded by asyncio.wait_for in the caller."""
         # Hoist generator import unconditionally to avoid UnboundLocalError from
         # the conditional re-import inside the decomposition branch.
-        from konjoai.generate.generator import get_generator  # noqa: PLC0415
         # CRAG + Self-RAG metadata (populated only when those features are enabled)
         crag_confidence: float | None = None
         crag_fallback: bool | None = None
@@ -421,14 +421,15 @@ async def query(  # noqa: C901
 
         # ── Audit log (Sprint 24; K3: no-op when audit_enabled=False) ────────
         if settings.audit_enabled:
-            from datetime import datetime, timezone
+            from datetime import datetime
+
             from konjoai.audit import get_audit_logger
             _latency = sum(
                 t.elapsed_ms for t in tel.steps
             ) if tel.steps else 0.0
             get_audit_logger().log(AuditEvent(
                 event_type=QUERY,
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
                 endpoint="/query",
                 status_code=200,
                 latency_ms=_latency,
@@ -444,7 +445,7 @@ async def query(  # noqa: C901
 
     try:
         return await asyncio.wait_for(_execute(), timeout=timeout_seconds)
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         logger.warning("query timed out after %.2fs", timeout_seconds)
         raise HTTPException(
             status_code=504,
@@ -473,7 +474,7 @@ async def query_stream(  # noqa: C901
     available in the final frame.
     """
     from konjoai.generate.generator import get_generator
-    from konjoai.retrieve.hybrid import HybridResult, hybrid_search
+    from konjoai.retrieve.hybrid import hybrid_search
     from konjoai.retrieve.hyde import hyde_encode
     from konjoai.retrieve.reranker import rerank
     from konjoai.retrieve.router import QueryIntent, classify_intent
@@ -558,7 +559,7 @@ async def query_stream(  # noqa: C901
 
     try:
         return await asyncio.wait_for(_stream_execute(), timeout=timeout_seconds)
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         logger.warning("query/stream timed out after %.2fs", timeout_seconds)
         raise HTTPException(
             status_code=504,

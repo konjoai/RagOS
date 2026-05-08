@@ -14,7 +14,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-
 # ---------------------------------------------------------------------------
 # Generator streaming tests
 # ---------------------------------------------------------------------------
@@ -22,7 +21,7 @@ from fastapi.testclient import TestClient
 class TestOpenAIGeneratorStream:
     """generate_stream() yields tokens from the OpenAI streaming API."""
 
-    def _make_generator(self) -> "OpenAIGenerator":  # noqa: F821
+    def _make_generator(self) -> OpenAIGenerator:  # noqa: F821
         from konjoai.generate.generator import OpenAIGenerator
 
         gen = OpenAIGenerator.__new__(OpenAIGenerator)
@@ -37,7 +36,6 @@ class TestOpenAIGeneratorStream:
         return chunk
 
     def test_yields_token_strings(self):
-        from konjoai.generate.generator import OpenAIGenerator
 
         gen = self._make_generator()
         tokens = ["Hello", " world", "!"]
@@ -50,7 +48,6 @@ class TestOpenAIGeneratorStream:
         assert result == tokens
 
     def test_none_delta_yields_empty_string(self):
-        from konjoai.generate.generator import OpenAIGenerator
 
         gen = self._make_generator()
         mock_stream = iter([self._make_chunk(None)])
@@ -62,7 +59,6 @@ class TestOpenAIGeneratorStream:
         assert result == [""]
 
     def test_stream_flag_passed_to_client(self):
-        from konjoai.generate.generator import OpenAIGenerator
 
         gen = self._make_generator()
         mock_client = MagicMock()
@@ -74,7 +70,6 @@ class TestOpenAIGeneratorStream:
         assert call_kwargs["stream"] is True
 
     def test_returns_iterator(self):
-        from konjoai.generate.generator import OpenAIGenerator
 
         gen = self._make_generator()
         mock_client = MagicMock()
@@ -181,6 +176,7 @@ def _make_app():
     without any extra prefix to get /query and /query/stream routes.
     """
     from fastapi import FastAPI
+
     from konjoai.api.routes.query import router
     app = FastAPI()
     app.include_router(router)  # router already has prefix="/query"
@@ -498,6 +494,7 @@ class TestCLIStreamFlag:
 
     def test_stream_flag_calls_generate_stream(self):
         from click.testing import CliRunner
+
         from konjoai.cli.main import cli
 
         mock_gen = MagicMock()
@@ -521,6 +518,7 @@ class TestCLIStreamFlag:
 
     def test_stream_short_form_flag(self):
         from click.testing import CliRunner
+
         from konjoai.cli.main import cli
 
         mock_gen = MagicMock()
@@ -543,6 +541,7 @@ class TestCLIStreamFlag:
 
     def test_no_stream_flag_calls_generate(self):
         from click.testing import CliRunner
+
         from konjoai.cli.main import cli
 
         mock_gen = MagicMock()
@@ -566,6 +565,7 @@ class TestCLIStreamFlag:
 
     def test_stream_flag_outputs_tokens(self):
         from click.testing import CliRunner
+
         from konjoai.cli.main import cli
 
         mock_gen = MagicMock()

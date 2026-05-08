@@ -19,17 +19,15 @@ import json
 import os
 import time
 from dataclasses import dataclass
-from typing import Any, Iterator
+from typing import Any
 from unittest.mock import patch
 
 import numpy as np
 from rich.align import Align
-from rich.columns import Columns
 from rich.console import Console, Group
 from rich.live import Live
 from rich.panel import Panel
 from rich.rule import Rule
-from rich.spinner import Spinner
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
@@ -301,7 +299,7 @@ def _cosine(a: np.ndarray, b: np.ndarray) -> float:
 class _StubResp:
     answer: str
 
-    def model_copy(self, *, update: dict) -> "_StubResp":
+    def model_copy(self, *, update: dict) -> _StubResp:
         return _StubResp(answer=update.get("answer", self.answer))
 
 

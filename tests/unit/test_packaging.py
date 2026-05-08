@@ -18,8 +18,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
-
 # ── Helpers ───────────────────────────────────────────────────────────────
 
 ROOT = Path(__file__).parent.parent.parent  # /Users/wesleyscholl/kyro
@@ -174,7 +172,7 @@ class TestSubPackageImports:
         assert get_settings is not None
 
     def test_feedback_importable(self) -> None:
-        from konjoai.feedback import get_feedback_store, FeedbackEvent, THUMBS_UP, THUMBS_DOWN
+        from konjoai.feedback import THUMBS_DOWN, THUMBS_UP, get_feedback_store
         assert get_feedback_store is not None
         assert THUMBS_UP == "thumbs_up"
         assert THUMBS_DOWN == "thumbs_down"

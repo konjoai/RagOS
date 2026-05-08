@@ -15,7 +15,7 @@ using the same ``hash_text()`` helper).
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
@@ -136,7 +136,7 @@ async def submit_feedback(
     from konjoai.feedback.store import get_feedback_store
 
     settings = get_settings()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     # Derive tenant from request state (set by JWT auth middleware when enabled)
     tenant_id: str | None = getattr(request.state, "tenant_id", None)

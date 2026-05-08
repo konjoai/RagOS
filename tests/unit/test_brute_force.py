@@ -34,7 +34,6 @@ from konjoai.auth.brute_force import (
     get_brute_force_guard,
 )
 
-
 # ── Construction ──────────────────────────────────────────────────────────────
 
 
@@ -391,8 +390,9 @@ class TestGetTenantIdBruteForce:
     @pytest.mark.asyncio
     async def test_locked_ip_returns_429(self) -> None:
         from fastapi import HTTPException
-        from konjoai.auth.deps import _resolve_tenant_id
         from fastapi.security import HTTPAuthorizationCredentials
+
+        from konjoai.auth.deps import _resolve_tenant_id
 
         stub = _BFSettingsStub()
         req = _FakeRequest(ip="6.6.6.6")
@@ -412,8 +412,9 @@ class TestGetTenantIdBruteForce:
     @pytest.mark.asyncio
     async def test_failed_jwt_increments_brute_force(self) -> None:
         from fastapi import HTTPException
-        from konjoai.auth.deps import _resolve_tenant_id
         from fastapi.security import HTTPAuthorizationCredentials
+
+        from konjoai.auth.deps import _resolve_tenant_id
 
         stub = _BFSettingsStub()
         req = _FakeRequest(ip="7.7.7.7")
@@ -433,9 +434,10 @@ class TestGetTenantIdBruteForce:
 
     @pytest.mark.asyncio
     async def test_successful_jwt_clears_brute_force(self) -> None:
+        from fastapi.security import HTTPAuthorizationCredentials
+
         from konjoai.auth.deps import _resolve_tenant_id
         from konjoai.auth.jwt_auth import TenantClaims
-        from fastapi.security import HTTPAuthorizationCredentials
 
         stub = _BFSettingsStub()
         req = _FakeRequest(ip="8.8.8.8")

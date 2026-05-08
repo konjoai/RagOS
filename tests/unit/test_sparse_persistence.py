@@ -1,11 +1,9 @@
 """Unit tests for BM25Index.save() / load() persistence (G6 fix)."""
 from __future__ import annotations
 
-import pickle
 import pytest
 
 from konjoai.retrieve.sparse import BM25Index
-
 
 # ---------------------------------------------------------------------------
 # Helpers

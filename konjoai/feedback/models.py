@@ -5,8 +5,7 @@ Only SHA-256 hashes of user-supplied strings are written to the feedback store.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
+from dataclasses import dataclass
 
 # ── Signal constants ──────────────────────────────────────────────────────────
 

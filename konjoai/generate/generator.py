@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
-from typing import AsyncIterator, Iterator, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
-_generator: "Generator | None" = None
+_generator: Generator | None = None
 
 RAG_PROMPT = """\
 Answer the question using ONLY the context provided below.
@@ -125,8 +126,7 @@ class AnthropicGenerator:
             max_tokens=self._max_tokens,
             messages=[{"role": "user", "content": prompt}],
         ) as stream:
-            for text in stream.text_stream:
-                yield text
+            yield from stream.text_stream
 
     async def stream(self, question: str, context: str) -> AsyncIterator[str]:
         """Async token-streaming interface; bridges generate_stream() via asyncio.to_thread."""

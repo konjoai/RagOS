@@ -56,7 +56,7 @@ import logging
 import re
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -68,8 +68,6 @@ _REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO))
 
 from konjoai.ingest.chunkers import (  # noqa: E402
-    LateChunker,
-    SemanticSplitter,
     get_chunker,
 )
 from konjoai.ingest.loaders import Document  # noqa: E402
@@ -127,7 +125,7 @@ def _build_encoder(model_name: str, quiet: bool):
         ) from e
 
 
-def _safe_encode(encoder, texts: list[str]) -> "Any":
+def _safe_encode(encoder, texts: list[str]) -> Any:
     """Encode with graceful empty-list guard."""
     if not texts:
         import numpy as np
@@ -136,7 +134,7 @@ def _safe_encode(encoder, texts: list[str]) -> "Any":
     return encoder.encode(texts)
 
 
-def _cosine_sims(embeddings: "Any") -> list[float]:
+def _cosine_sims(embeddings: Any) -> list[float]:
     """Adjacent cosine similarities for a (N, dim) float32 array."""
     import numpy as np
 
@@ -434,7 +432,7 @@ def main() -> int:
                 print(f"❌  {msg}", file=sys.stderr)
 
     # ── Write output ──────────────────────────────────────────────────────────
-    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")
     run_dir = _RUNS_DIR / f"{timestamp}_{args.run_name}"
     run_dir.mkdir(parents=True, exist_ok=True)
 

@@ -26,7 +26,6 @@ from konjoai.retrieve.graph_rag import (
     get_graph_rag_retriever,
 )
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -423,13 +422,13 @@ class _SettingsStubGraphRAGEnabled:
     audit_enabled: bool = False
 
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from fastapi import FastAPI  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 
-from konjoai.api.routes.query import router
-from konjoai.generate.generator import GenerationResult
-from konjoai.retrieve.hybrid import HybridResult
-from konjoai.retrieve.reranker import RerankResult
+from konjoai.api.routes.query import router  # noqa: E402
+from konjoai.generate.generator import GenerationResult  # noqa: E402
+from konjoai.retrieve.hybrid import HybridResult  # noqa: E402
+from konjoai.retrieve.reranker import RerankResult  # noqa: E402
 
 
 class _GeneratorStub:

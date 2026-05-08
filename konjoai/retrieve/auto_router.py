@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class RouteStrategy(str, Enum):
+class RouteStrategy(StrEnum):
     DIRECT = "direct"
     SELF_RAG = "self_rag"
     DECOMPOSE = "decompose"

@@ -46,7 +46,6 @@ from dataclasses import dataclass, field
 from konjoai.ingest.chunkers import Chunk, RecursiveChunker
 from konjoai.ingest.loaders import Document
 
-
 # ── Complexity scoring ────────────────────────────────────────────────────────
 
 _MULTI_PART_RE = re.compile(

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import numpy as np
 import pytest
-from unittest.mock import MagicMock, patch
 
 import konjoai.embed.encoder as enc_module
 from konjoai.embed.encoder import SentenceEncoder
-
 
 # ---------------------------------------------------------------------------
 # SentenceEncoder via mocked SentenceTransformer

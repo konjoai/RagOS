@@ -5,14 +5,13 @@ from __future__ import annotations
 import pytest
 
 from konjoai.retrieve.router import (
-    ChunkComplexity,
     CHUNK_SIZE_MAP,
+    ChunkComplexity,
     QueryIntent,
     classify_chunk_complexity,
     classify_intent,
     decompose_query,
 )
-
 
 # ---------------------------------------------------------------------------
 # classify_intent

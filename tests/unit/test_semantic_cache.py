@@ -23,7 +23,6 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -42,7 +41,7 @@ def _make_response(answer: str = "answer") -> Any:
             self.cache_hit = False
             self.telemetry = None
 
-        def model_copy(self, *, update: dict) -> "_FakeResponse":
+        def model_copy(self, *, update: dict) -> _FakeResponse:
             obj = _FakeResponse(self.answer)
             obj.cache_hit = update.get("cache_hit", self.cache_hit)
             obj.telemetry = update.get("telemetry", self.telemetry)

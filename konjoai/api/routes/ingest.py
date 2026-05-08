@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-
-from fastapi import Depends
 
 from konjoai.api.schemas import IngestRequest, IngestResponse, ManifestResponse, VerifyResponse
 from konjoai.audit.models import INGEST, AuditEvent, hash_text
@@ -24,11 +23,11 @@ def ingest(
     """Load files from *path*, chunk, embed, and upsert into Qdrant + BM25."""
     from pathlib import Path
 
-    from konjoai.ingest.loaders import load_path
-    from konjoai.ingest.chunkers import get_chunker
     from konjoai.embed.encoder import get_encoder
-    from konjoai.store.qdrant import get_store
+    from konjoai.ingest.chunkers import get_chunker
+    from konjoai.ingest.loaders import load_path
     from konjoai.retrieve.sparse import get_sparse_index
+    from konjoai.store.qdrant import get_store
 
     path = Path(req.path)
     if not path.exists():
@@ -100,11 +99,12 @@ def ingest(
 
     # ── Audit log (Sprint 24; K3: no-op when audit_enabled=False) ────────────
     if settings.audit_enabled:
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         from konjoai.audit import get_audit_logger
         get_audit_logger().log(AuditEvent(
             event_type=INGEST,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             endpoint="/ingest",
             status_code=200,
             latency_ms=0.0,

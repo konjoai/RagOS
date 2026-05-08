@@ -14,19 +14,18 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 import konjoai.auth.jwt_auth as _jwt_module
-from konjoai.auth.jwt_auth import TenantClaims, _HAS_JWT, decode_token
+from konjoai.auth.jwt_auth import _HAS_JWT, TenantClaims, decode_token
 from konjoai.auth.tenant import (
     ANONYMOUS_TENANT,
     _current_tenant_id,
     get_current_tenant_id,
     set_current_tenant_id,
 )
-
 
 # ── TenantClaims ──────────────────────────────────────────────────────────────
 
@@ -239,6 +238,7 @@ class TestGetTenantIdDep:
     @pytest.mark.asyncio
     async def test_raises_401_when_enabled_and_no_credentials(self) -> None:
         from fastapi import HTTPException
+
         from konjoai.auth.deps import _resolve_tenant_id
         stub = _AuthSettingsStub(multi_tenancy_enabled=True, jwt_secret_key="s")
         with patch("konjoai.auth.deps.get_settings", return_value=stub):
@@ -250,6 +250,7 @@ class TestGetTenantIdDep:
     @pytest.mark.asyncio
     async def test_raises_503_when_secret_not_configured(self) -> None:
         from fastapi import HTTPException
+
         from konjoai.auth.deps import _resolve_tenant_id
         stub = _AuthSettingsStub(multi_tenancy_enabled=True, jwt_secret_key="")
         creds = self._stub_creds("sometoken")
@@ -262,6 +263,7 @@ class TestGetTenantIdDep:
     @pytest.mark.asyncio
     async def test_raises_401_when_token_invalid(self) -> None:
         from fastapi import HTTPException
+
         from konjoai.auth.deps import _resolve_tenant_id
         stub = _AuthSettingsStub(multi_tenancy_enabled=True, jwt_secret_key="real-secret")
         creds = self._stub_creds("not-a-valid-jwt")
@@ -309,6 +311,7 @@ class TestQdrantStoreTenantScoping:
     def test_upsert_adds_tenant_id_to_payload(self) -> None:
         """When tenant context is set, upsert injects tenant_id into payload."""
         import numpy as np
+
         from konjoai.store.qdrant import QdrantStore
 
         mock_client = MagicMock()
@@ -339,6 +342,7 @@ class TestQdrantStoreTenantScoping:
     def test_upsert_no_tenant_id_when_context_unset(self) -> None:
         """Without tenant context, upsert does not add tenant_id to payload."""
         import numpy as np
+
         from konjoai.store.qdrant import QdrantStore
 
         mock_client = MagicMock()
@@ -363,6 +367,7 @@ class TestQdrantStoreTenantScoping:
     def test_search_applies_filter_when_tenant_set(self) -> None:
         """When tenant context is set, search passes a Qdrant Filter."""
         import numpy as np
+
         from konjoai.store.qdrant import QdrantStore
 
         mock_client = MagicMock()
@@ -385,6 +390,7 @@ class TestQdrantStoreTenantScoping:
     def test_search_no_filter_when_tenant_unset(self) -> None:
         """Without tenant context, search passes no filter (backward compat)."""
         import numpy as np
+
         from konjoai.store.qdrant import QdrantStore
 
         mock_client = MagicMock()

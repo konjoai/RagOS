@@ -18,14 +18,20 @@ from __future__ import annotations
 
 import json
 import threading
-from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+from konjoai.audit.logger import (
+    AuditLogger,
+    InMemoryBackend,
+    JsonLinesBackend,
+    _reset_singleton,
+    get_audit_logger,
+)
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
 from konjoai.audit.models import (
     AGENT_QUERY,
     AUTH_FAILURE,
@@ -34,13 +40,6 @@ from konjoai.audit.models import (
     RATE_LIMITED,
     AuditEvent,
     hash_text,
-)
-from konjoai.audit.logger import (
-    AuditLogger,
-    InMemoryBackend,
-    JsonLinesBackend,
-    _reset_singleton,
-    get_audit_logger,
 )
 
 
@@ -302,7 +301,9 @@ class TestAuditAPIDisabled:
 
     def _make_client(self):
         from dataclasses import dataclass as dc
+
         from fastapi.testclient import TestClient
+
         from konjoai.api.app import app
 
         @dc
@@ -315,7 +316,9 @@ class TestAuditAPIDisabled:
 
     def test_events_disabled_returns_404(self) -> None:
         from dataclasses import dataclass as dc
+
         from fastapi.testclient import TestClient
+
         from konjoai.api.routes.audit import router as audit_router
 
         @dc
@@ -333,7 +336,9 @@ class TestAuditAPIDisabled:
 
     def test_stats_disabled_returns_404(self) -> None:
         from dataclasses import dataclass as dc
+
         from fastapi.testclient import TestClient
+
         from konjoai.api.routes.audit import router as audit_router
 
         @dc
@@ -355,8 +360,9 @@ class TestAuditAPIEnabled:
 
     def _build_app_and_backend(self):
         from dataclasses import dataclass as dc
+
         from fastapi import FastAPI
-        from fastapi.testclient import TestClient
+
         from konjoai.api.routes.audit import router as audit_router
 
         @dc
@@ -372,6 +378,7 @@ class TestAuditAPIEnabled:
 
     def test_events_enabled_returns_200(self) -> None:
         from fastapi.testclient import TestClient
+
         import konjoai.audit.logger as _logger_mod
         _app, backend, al, _S = self._build_app_and_backend()
         backend.write(_make_event(tenant_id="acme"))
@@ -391,6 +398,7 @@ class TestAuditAPIEnabled:
 
     def test_stats_enabled_returns_200(self) -> None:
         from fastapi.testclient import TestClient
+
         import konjoai.audit.logger as _logger_mod
         _app, backend, al, _S = self._build_app_and_backend()
         backend.write(_make_event(event_type=QUERY))

@@ -14,10 +14,10 @@ Design principles
 """
 from __future__ import annotations
 
-from typing import AsyncIterator, Iterator, Protocol, runtime_checkable
+from collections.abc import AsyncIterator, Iterator
+from typing import Protocol, runtime_checkable
 
 import numpy as np
-
 
 # ── VectorStoreAdapter ────────────────────────────────────────────────────────
 
@@ -145,7 +145,7 @@ class RetrieverAdapter(Protocol):
         self,
         query: str,
         top_k: int = 10,
-        q_vec: "np.ndarray | None" = None,
+        q_vec: np.ndarray | None = None,
     ) -> list[object]:
         """Return *top_k* results ranked by relevance.
 

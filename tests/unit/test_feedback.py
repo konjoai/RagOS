@@ -16,12 +16,10 @@ Coverage:
 from __future__ import annotations
 
 import threading
-from dataclasses import FrozenInstanceError
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 # ── Helpers / shared fixtures ─────────────────────────────────────────────────
 
@@ -90,7 +88,7 @@ def _make_client(feedback_enabled: bool = True, max_events: int = 1000) -> TestC
 
 class TestFeedbackEventModel:
     def test_minimal_construction(self):
-        from konjoai.feedback.models import FeedbackEvent, THUMBS_UP
+        from konjoai.feedback.models import THUMBS_UP, FeedbackEvent
         ev = FeedbackEvent(
             question_hash="a1b2c3d4e5f6a7b8",
             signal=THUMBS_UP,
@@ -107,7 +105,7 @@ class TestFeedbackEventModel:
         assert ev.latency_ms is None
 
     def test_full_construction(self):
-        from konjoai.feedback.models import FeedbackEvent, THUMBS_DOWN
+        from konjoai.feedback.models import THUMBS_DOWN, FeedbackEvent
         ev = FeedbackEvent(
             question_hash="abc123",
             signal=THUMBS_DOWN,
@@ -126,7 +124,7 @@ class TestFeedbackEventModel:
         assert ev.latency_ms == pytest.approx(342.1)
 
     def test_as_dict_omits_none(self):
-        from konjoai.feedback.models import FeedbackEvent, THUMBS_UP
+        from konjoai.feedback.models import THUMBS_UP, FeedbackEvent
         ev = FeedbackEvent(
             question_hash="a1b2",
             signal=THUMBS_UP,
@@ -141,7 +139,7 @@ class TestFeedbackEventModel:
         assert "comment_hash" not in d
 
     def test_as_dict_includes_set_fields(self):
-        from konjoai.feedback.models import FeedbackEvent, THUMBS_DOWN
+        from konjoai.feedback.models import THUMBS_DOWN, FeedbackEvent
         ev = FeedbackEvent(
             question_hash="x",
             signal=THUMBS_DOWN,
@@ -154,11 +152,11 @@ class TestFeedbackEventModel:
         assert d["tenant_id"] == "t1"
 
     def test_signal_constants_distinct(self):
-        from konjoai.feedback.models import THUMBS_UP, THUMBS_DOWN
+        from konjoai.feedback.models import THUMBS_DOWN, THUMBS_UP
         assert THUMBS_UP != THUMBS_DOWN
 
     def test_valid_signals_set(self):
-        from konjoai.feedback.models import THUMBS_UP, THUMBS_DOWN, VALID_SIGNALS
+        from konjoai.feedback.models import THUMBS_DOWN, THUMBS_UP, VALID_SIGNALS
         assert THUMBS_UP in VALID_SIGNALS
         assert THUMBS_DOWN in VALID_SIGNALS
         assert len(VALID_SIGNALS) == 2
@@ -384,14 +382,14 @@ class TestFeedbackStore:
         assert s.size <= 1000
 
     def test_singleton_returns_same_instance(self):
-        from konjoai.feedback.store import get_feedback_store, _reset_singleton
+        from konjoai.feedback.store import _reset_singleton, get_feedback_store
         _reset_singleton()
         s1 = get_feedback_store()
         s2 = get_feedback_store()
         assert s1 is s2
 
     def test_reset_clears_singleton(self):
-        from konjoai.feedback.store import get_feedback_store, _reset_singleton
+        from konjoai.feedback.store import _reset_singleton, get_feedback_store
         _reset_singleton()
         s1 = get_feedback_store()
         _reset_singleton()
@@ -440,6 +438,7 @@ def _make_enabled_settings(max_events: int = 1000):
 def _feedback_app(settings_stub):
     """Build an isolated FastAPI app containing only the feedback router."""
     from fastapi import FastAPI
+
     from konjoai.api.routes.feedback import router as fb_router
     app = FastAPI()
     app.include_router(fb_router)
@@ -647,8 +646,8 @@ class TestFeedbackAPIEnabled:
         assert body["thumbs_down"] == 1
 
     def test_summary_with_tenant_filter(self):
-        from konjoai.feedback.store import _reset_singleton, get_feedback_store
         from konjoai.feedback.models import FeedbackEvent
+        from konjoai.feedback.store import _reset_singleton, get_feedback_store
         _reset_singleton()
         stub = _make_enabled_settings()
         app = _feedback_app(stub)
@@ -679,32 +678,34 @@ class TestFeedbackOWASP:
 
     def test_post_does_not_accept_raw_question(self):
         """The /feedback endpoint has no 'question' field — only question_hash."""
+
         from konjoai.api.routes.feedback import FeedbackRequest
-        import inspect
         fields = FeedbackRequest.model_fields
         assert "question" not in fields, "FeedbackRequest must not accept raw question text"
 
     def test_feedback_event_has_no_question_field(self):
         """FeedbackEvent stores question_hash, not raw question."""
-        from konjoai.feedback.models import FeedbackEvent
         import dataclasses
+
+        from konjoai.feedback.models import FeedbackEvent
         field_names = {f.name for f in dataclasses.fields(FeedbackEvent)}
         assert "question" not in field_names
         assert "question_hash" in field_names
 
     def test_comment_stored_as_hash(self):
         """When a comment is submitted it is stored as comment_hash, not raw text."""
-        from konjoai.feedback.models import FeedbackEvent
         import dataclasses
+
+        from konjoai.feedback.models import FeedbackEvent
         field_names = {f.name for f in dataclasses.fields(FeedbackEvent)}
         assert "comment" not in field_names
         assert "comment_hash" in field_names
 
     def test_raw_comment_not_in_stored_event(self):
         """Verify that the store records comment_hash, not the raw comment string."""
-        from konjoai.feedback.store import FeedbackStore, _reset_singleton
-        from konjoai.feedback.models import FeedbackEvent
         from konjoai.audit.models import hash_text
+        from konjoai.feedback.models import FeedbackEvent
+        from konjoai.feedback.store import FeedbackStore, _reset_singleton
 
         _reset_singleton()
         raw_comment = "The answer was completely wrong about the refund policy."
@@ -731,12 +732,8 @@ class TestFeedbackOWASP:
 class TestFeedbackPackageExports:
     def test_all_symbols_importable(self):
         from konjoai.feedback import (
-            FeedbackEvent,
-            FeedbackStore,
-            get_feedback_store,
-            _reset_singleton,
-            THUMBS_UP,
             THUMBS_DOWN,
+            THUMBS_UP,
             VALID_SIGNALS,
         )
         assert THUMBS_UP == "thumbs_up"

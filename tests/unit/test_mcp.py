@@ -13,7 +13,7 @@ Coverage targets:
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -29,7 +29,6 @@ from konjoai.sdk.models import (
     SDKQueryResponse,
     SDKSourceDoc,
 )
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

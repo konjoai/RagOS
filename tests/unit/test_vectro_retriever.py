@@ -6,10 +6,8 @@ The adapter's numpy fallback path is exercised via monkeypatching.
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from konjoai.retrieve.hybrid import HybridResult
-
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures

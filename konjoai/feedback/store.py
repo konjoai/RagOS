@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import threading
 from collections import deque
-from typing import Iterator
+from collections.abc import Iterator
 
 from konjoai.feedback.models import FeedbackEvent
 
@@ -33,7 +33,7 @@ _store_instance: FeedbackStore | None = None
 _store_lock = threading.Lock()
 
 
-def get_feedback_store(max_events: int = 1000) -> "FeedbackStore":
+def get_feedback_store(max_events: int = 1000) -> FeedbackStore:
     """Return (or lazily create) the module-level ``FeedbackStore`` singleton."""
     global _store_instance
     with _store_lock:

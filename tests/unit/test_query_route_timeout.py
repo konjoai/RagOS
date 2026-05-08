@@ -14,8 +14,6 @@ from fastapi.testclient import TestClient
 
 from konjoai.api.routes.query import router
 from konjoai.retrieve.reranker import RerankResult
-from konjoai.retrieve.router import QueryIntent
-
 
 # ── Shared settings stubs ────────────────────────────────────────────────────
 
