@@ -21,12 +21,11 @@ import time
 import pytest
 
 from konjoai.auth.rate_limiter import (
-    RateLimitExceeded,
     RateLimiter,
+    RateLimitExceeded,
     _reset_singleton,
     get_rate_limiter,
 )
-
 
 # ── Construction ──────────────────────────────────────────────────────────────
 
@@ -277,6 +276,7 @@ class TestSingleton:
 
     def test_get_rate_limiter_returns_instance(self) -> None:
         from unittest.mock import patch
+
         from konjoai.config import Settings
 
         stub_settings = Settings.model_construct(
@@ -290,6 +290,7 @@ class TestSingleton:
 
     def test_get_rate_limiter_same_instance_twice(self) -> None:
         from unittest.mock import patch
+
         from konjoai.config import Settings
 
         stub_settings = Settings.model_construct(
@@ -304,6 +305,7 @@ class TestSingleton:
 
     def test_reset_singleton_forces_new_instance(self) -> None:
         from unittest.mock import patch
+
         from konjoai.config import Settings
 
         stub = Settings.model_construct(
@@ -319,6 +321,7 @@ class TestSingleton:
 
     def test_singleton_respects_enabled_flag(self) -> None:
         from unittest.mock import patch
+
         from konjoai.config import Settings
 
         stub = Settings.model_construct(

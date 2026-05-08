@@ -18,9 +18,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────
 
 ROOT = Path(__file__).parent.parent.parent  # /Users/wesleyscholl/kyro
 
@@ -33,13 +31,13 @@ def _pyproject() -> str:
     return _read("pyproject.toml")
 
 
-# ── konjoai.__version__ ───────────────────────────────────────────────────────
+# ── konjoai.__version__ ───────────────────────────────────────────────────
 
 
 class TestPackageVersion:
-    def test_version_is_1_4_0(self) -> None:
+    def test_version_is_1_5_0(self) -> None:
         import konjoai
-        assert konjoai.__version__ == "1.4.0"
+        assert konjoai.__version__ == "1.5.0"
 
     def test_version_matches_pyproject(self) -> None:
         import konjoai
@@ -53,7 +51,7 @@ class TestPackageVersion:
         assert re.match(r"^\d+\.\d+\.\d+$", konjoai.__version__)
 
 
-# ── pyproject.toml metadata ───────────────────────────────────────────────────
+# ── pyproject.toml metadata ───────────────────────────────────────────────
 
 
 class TestPyprojectMetadata:
@@ -80,7 +78,7 @@ class TestPyprojectMetadata:
         assert '"llm"' in text
 
 
-# ── Classifiers ───────────────────────────────────────────────────────────────
+# ── Classifiers ───────────────────────────────────────────────────────────
 
 
 class TestPyprojectClassifiers:
@@ -103,7 +101,7 @@ class TestPyprojectClassifiers:
         assert "Typing :: Typed" in _pyproject()
 
 
-# ── Optional extras ───────────────────────────────────────────────────────────
+# ── Optional extras ───────────────────────────────────────────────────────
 
 
 class TestPyprojectExtras:
@@ -126,7 +124,7 @@ class TestPyprojectExtras:
         assert "all" in _pyproject()
 
 
-# ── Project URLs ──────────────────────────────────────────────────────────────
+# ── Project URLs ──────────────────────────────────────────────────────────
 
 
 class TestPyprojectURLs:
@@ -143,7 +141,7 @@ class TestPyprojectURLs:
         assert "Changelog" in _pyproject()
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
+# ── Entry point ───────────────────────────────────────────────────────────
 
 
 class TestPyprojectEntryPoints:
@@ -153,7 +151,7 @@ class TestPyprojectEntryPoints:
         assert "konjoai.cli.main:cli" in text
 
 
-# ── Sub-package smoke imports ─────────────────────────────────────────────────
+# ── Sub-package smoke imports ─────────────────────────────────────────────
 
 
 class TestSubPackageImports:
@@ -173,8 +171,14 @@ class TestSubPackageImports:
         from konjoai.config import get_settings
         assert get_settings is not None
 
+    def test_feedback_importable(self) -> None:
+        from konjoai.feedback import THUMBS_DOWN, THUMBS_UP, get_feedback_store
+        assert get_feedback_store is not None
+        assert THUMBS_UP == "thumbs_up"
+        assert THUMBS_DOWN == "thumbs_down"
 
-# ── mkdocs.yml ────────────────────────────────────────────────────────────────
+
+# ── mkdocs.yml ────────────────────────────────────────────────────────────
 
 
 class TestMkdocsConfig:
@@ -194,7 +198,7 @@ class TestMkdocsConfig:
         assert "deployment.md" in _read("mkdocs.yml")
 
 
-# ── docs/ pages ───────────────────────────────────────────────────────────────
+# ── docs/ pages ───────────────────────────────────────────────────────────
 
 
 class TestDocsPages:
@@ -205,7 +209,7 @@ class TestDocsPages:
             assert (ROOT / "docs" / page).exists(), f"Missing docs/{page}"
 
     def test_index_mentions_version(self) -> None:
-        assert "1.4.0" in _read("docs/index.md")
+        assert "1.5.0" in _read("docs/index.md")
 
     def test_sdk_doc_has_error_handling_section(self) -> None:
         assert "KyroError" in _read("docs/sdk.md")

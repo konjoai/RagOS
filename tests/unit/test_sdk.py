@@ -13,7 +13,6 @@ Coverage targets:
 """
 from __future__ import annotations
 
-from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -35,7 +34,6 @@ from konjoai.sdk.models import (
     SDKSourceDoc,
     SDKStreamChunk,
 )
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

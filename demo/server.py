@@ -393,17 +393,28 @@ def synthesise_answer(question: str) -> str:
     Real deployments wire this slot to ``konjoai.generate.get_generator()``.
     """
     q = question.lower()
-    if "capital" in q and ("france" in q or "french" in q): return "Paris."
-    if "capital" in q and "germany" in q:                   return "Berlin."
-    if "capital" in q and ("uk" in q or "england" in q or "britain" in q): return "London."
-    if "refund" in q or "return" in q or "money" in q:      return "Refunds are accepted within 30 days with a receipt."
-    if "ship" in q or "delivery" in q or "deliver" in q:    return "Free shipping over $50; typically 2–3 business days."
-    if "sla" in q or "uptime" in q:                         return "Our SLA is 99.95% uptime measured per quarter."
-    if "install" in q and ("kyro" in q or "konjo" in q):    return "pip install konjoai"
-    if "open source" in q or "license" in q or "licence" in q: return "Yes — Kyro is MIT licensed."
-    if "language" in q and ("kyro" in q or "konjo" in q):   return "Python 3.11+."
-    if "meaning of life" in q:                              return "42. (Source: Hitchhiker's Guide to the Galaxy.)"
-    if "kyro" in q or "konjo" in q:                         return "Kyro is a production RAG agent with semantic caching and live answer streaming."
+    if "capital" in q and ("france" in q or "french" in q):
+        return "Paris."
+    if "capital" in q and "germany" in q:
+        return "Berlin."
+    if "capital" in q and ("uk" in q or "england" in q or "britain" in q):
+        return "London."
+    if "refund" in q or "return" in q or "money" in q:
+        return "Refunds are accepted within 30 days with a receipt."
+    if "ship" in q or "delivery" in q or "deliver" in q:
+        return "Free shipping over $50; typically 2–3 business days."
+    if "sla" in q or "uptime" in q:
+        return "Our SLA is 99.95% uptime measured per quarter."
+    if "install" in q and ("kyro" in q or "konjo" in q):
+        return "pip install konjoai"
+    if "open source" in q or "license" in q or "licence" in q:
+        return "Yes — Kyro is MIT licensed."
+    if "language" in q and ("kyro" in q or "konjo" in q):
+        return "Python 3.11+."
+    if "meaning of life" in q:
+        return "42. (Source: Hitchhiker's Guide to the Galaxy.)"
+    if "kyro" in q or "konjo" in q:
+        return "Kyro is a production RAG agent with semantic caching and live answer streaming."
     return f'I would ask the LLM about "{question}" and remember the answer for next time.'
 
 

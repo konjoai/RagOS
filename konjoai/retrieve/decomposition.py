@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Awaitable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Protocol
+from typing import Any, Protocol
 
 from konjoai.generate.generator import Generator
 from konjoai.retrieve.router import decompose_query

@@ -1,4 +1,5 @@
-from konjoai.cache.async_cache import AsyncSemanticCache, wrap as async_wrap
+from konjoai.cache.async_cache import AsyncSemanticCache
+from konjoai.cache.async_cache import wrap as async_wrap
 from konjoai.cache.redis_cache import RedisSemanticCache, build_redis_cache
 from konjoai.cache.semantic_cache import SemanticCache, get_semantic_cache
 

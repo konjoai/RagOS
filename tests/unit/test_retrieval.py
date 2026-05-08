@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from konjoai.retrieve.hybrid import reciprocal_rank_fusion, HybridResult
+from konjoai.retrieve.hybrid import reciprocal_rank_fusion
 from konjoai.retrieve.sparse import BM25Index
 from konjoai.store.qdrant import SearchResult
-
 
 # ---------------------------------------------------------------------------
 # Helpers

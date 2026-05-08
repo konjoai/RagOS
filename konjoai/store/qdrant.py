@@ -8,7 +8,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-_store: "QdrantStore | None" = None
+_store: QdrantStore | None = None
 
 
 @dataclass
@@ -152,7 +152,7 @@ class QdrantStore:
 
     def scroll_all(
         self, batch_size: int = 256
-    ) -> tuple["np.ndarray", list[str], list[str], list[str]]:
+    ) -> tuple[np.ndarray, list[str], list[str], list[str]]:
         """Scroll through every point in the collection.
 
         Returns
@@ -208,8 +208,8 @@ class AsyncQdrantStore:
 
     def __init__(self) -> None:
         try:
+            import httpx  # noqa: PLC0415, F401
             from qdrant_client import AsyncQdrantClient  # noqa: PLC0415
-            import httpx  # noqa: PLC0415
         except ImportError as exc:
             raise ImportError("qdrant-client>=1.7 and httpx are required") from exc
 
@@ -243,7 +243,7 @@ class AsyncQdrantStore:
         ]
 
 
-_async_store: "AsyncQdrantStore | None" = None
+_async_store: AsyncQdrantStore | None = None
 
 
 def get_async_store() -> AsyncQdrantStore:

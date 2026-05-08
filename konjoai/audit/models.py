@@ -6,8 +6,7 @@ Only SHA-256 hashes of user-supplied strings are written to the audit log.
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field
-
+from dataclasses import dataclass
 
 # ── Event type constants ──────────────────────────────────────────────────────
 

@@ -9,7 +9,6 @@ Tests verify that:
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from konjoai.adapters import (
     EmbedderAdapter,
@@ -17,7 +16,6 @@ from konjoai.adapters import (
     RetrieverAdapter,
     VectorStoreAdapter,
 )
-
 
 # ── Stub implementations ─────────────────────────────────────────────────────
 
@@ -198,6 +196,7 @@ def test_stream_flag_passed_correctly_to_generate_stream():
     """async stream() must pass question and context through to generate_stream()."""
     import asyncio
     from unittest.mock import patch
+
     from konjoai.generate.generator import OpenAIGenerator
 
     gen = OpenAIGenerator.__new__(OpenAIGenerator)
@@ -213,6 +212,7 @@ def test_stream_flag_passed_correctly_to_generate_stream():
 
 def test_cli_stream_flag_appears_in_help():
     from click.testing import CliRunner
+
     from konjoai.cli.main import cli
 
     runner = CliRunner()

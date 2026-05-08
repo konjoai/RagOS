@@ -45,7 +45,7 @@ class AuditEventOut(BaseModel):
     reason: str | None = None
 
     @classmethod
-    def from_event(cls, event: AuditEvent) -> "AuditEventOut":
+    def from_event(cls, event: AuditEvent) -> AuditEventOut:
         return cls(**event.as_dict())
 
 

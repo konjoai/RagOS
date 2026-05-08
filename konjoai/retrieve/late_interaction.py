@@ -118,7 +118,7 @@ def maxsim_score(
 def rerank_with_maxsim(
     query_embedding: np.ndarray,
     results: list,
-    get_embedding: "callable | None" = None,
+    get_embedding: callable | None = None,
 ) -> list:
     """Re-rank a list of retrieval results using MaxSim scores.
 
@@ -155,7 +155,9 @@ def rerank_with_maxsim(
         try:
             from konjoai.embed.encoder import get_encoder
             _enc = get_encoder()
-            get_embedding = lambda text: _enc.encode(text)
+
+            def get_embedding(text: str) -> object:  # noqa: F811
+                return _enc.encode(text)
         except Exception:
             return results  # K3: graceful degradation
 

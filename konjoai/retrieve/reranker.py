@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-_reranker: "CrossEncoderReranker | None" = None
+_reranker: CrossEncoderReranker | None = None
 
 
 @dataclass

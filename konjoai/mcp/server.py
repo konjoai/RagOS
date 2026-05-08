@@ -22,7 +22,6 @@ from typing import Any
 from konjoai.sdk.client import KonjoClient
 from konjoai.sdk.exceptions import KyroError
 
-
 # ── Tool definitions (JSON Schema for MCP list_tools) ────────────────────────
 
 TOOLS: list[dict[str, Any]] = [

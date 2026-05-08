@@ -9,10 +9,8 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -331,7 +329,7 @@ class TestEmbeddingsToJsonl:
         path = svc.embeddings_to_jsonl(vecs)
         try:
             lines = Path(path).read_text().strip().split("\n")
-            ids = [json.loads(l)["id"] for l in lines]
+            ids = [json.loads(line)["id"] for line in lines]
             assert len(ids) == 3
             assert all(isinstance(i, str) for i in ids)
         finally:

@@ -98,7 +98,7 @@ except ImportError:  # pragma: no cover
     _NUMPY_AVAILABLE = False
 
 
-def _cosine_similarities(embeddings: "np.ndarray") -> "np.ndarray":
+def _cosine_similarities(embeddings: np.ndarray) -> np.ndarray:
     """Return pairwise cosine similarities between adjacent rows.
 
     Args:
@@ -180,7 +180,7 @@ class SemanticSplitter:
             self._enc = SentenceEncoder(model_name=self.model_name, device=self.device)
         return self._enc
 
-    def _encode(self, texts: list[str]) -> "np.ndarray":
+    def _encode(self, texts: list[str]) -> np.ndarray:
         """Encode *texts*; supports both :class:`SentenceEncoder` and raw callables."""
         import numpy as np  # noqa: PLC0415
         enc = self._get_encoder()
@@ -353,7 +353,7 @@ class LateChunker:
             self._enc = SentenceEncoder(model_name=self.model_name, device=self.device)
         return self._enc
 
-    def _encode(self, texts: list[str]) -> "np.ndarray":
+    def _encode(self, texts: list[str]) -> np.ndarray:
         import numpy as np  # noqa: PLC0415
         enc = self._get_encoder()
         if hasattr(enc, "encode"):

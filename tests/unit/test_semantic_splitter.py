@@ -12,7 +12,6 @@ import pytest
 from konjoai.ingest.chunkers import SemanticSplitter, get_chunker
 from konjoai.ingest.loaders import Document
 
-
 # ---------------------------------------------------------------------------
 # Mock encoder
 # ---------------------------------------------------------------------------
@@ -199,7 +198,6 @@ class TestSemanticSplitterSplitting:
         sentences = ["Alpha beta.", "Gamma delta.", "Epsilon zeta.", "Eta theta."]
         text = " ".join(sentences)
         chunks = splitter.chunk(_doc(text))
-        reconstructed = " ".join(c.content for c in chunks)
         for sent in sentences:
             # Each original sentence should be recoverable from the chunks
             assert any(

@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from konjoai.store.qdrant import SearchResult
 from konjoai.retrieve.sparse import BM25Result
+from konjoai.store.qdrant import SearchResult
 
 
 @dataclass
@@ -67,7 +67,7 @@ def hybrid_search(
     top_k_dense: int | None = None,
     top_k_sparse: int | None = None,
     alpha: float | None = None,
-    q_vec: "np.ndarray | None" = None,
+    q_vec: np.ndarray | None = None,
 ) -> list[HybridResult]:
     """Run dense + sparse searches then fuse with RRF.
 

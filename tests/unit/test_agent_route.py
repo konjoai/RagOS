@@ -318,7 +318,7 @@ def test_agent_query_stream_returns_504_on_timeout(monkeypatch):
             await coro_task
         except (_aio.CancelledError, BaseException):
             pass
-        raise _aio.TimeoutError()
+        raise TimeoutError()
 
     with (
         patch("konjoai.api.routes.agent.get_settings", return_value=_SettingsTimeout()),

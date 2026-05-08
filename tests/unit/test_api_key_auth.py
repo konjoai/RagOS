@@ -24,7 +24,6 @@ import pytest
 from konjoai.auth.api_key import APIKeyResult, hash_api_key, verify_api_key
 from konjoai.auth.tenant import ANONYMOUS_TENANT
 
-
 # ── hash_api_key ──────────────────────────────────────────────────────────────
 
 
@@ -201,6 +200,7 @@ class TestGetTenantIdAPIKeyPaths:
     @pytest.mark.asyncio
     async def test_invalid_api_key_raises_401(self) -> None:
         from fastapi import HTTPException
+
         from konjoai.auth.deps import _resolve_tenant_id
 
         stub = self._stub_settings()
@@ -253,6 +253,7 @@ class TestGetTenantIdAPIKeyPaths:
     async def test_api_key_preferred_over_jwt_when_both_present(self) -> None:
         """When both X-API-Key and Bearer token are present, API key wins."""
         from fastapi.security import HTTPAuthorizationCredentials
+
         from konjoai.auth.deps import _resolve_tenant_id
         from konjoai.auth.jwt_auth import TenantClaims
 

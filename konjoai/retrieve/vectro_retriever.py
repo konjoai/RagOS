@@ -43,8 +43,8 @@ MAX_CORPUS_POINTS = 200_000
 # ── Rust-bindings availability check ────────────────────────────────────────
 _VECTRO_PY_AVAILABLE: bool = False
 try:
-    from vectro_py import EmbeddingDataset, PyEmbedding  # type: ignore[import-not-found]
     from vectro.python.retriever import VectroRetriever  # type: ignore[import-not-found]
+    from vectro_py import EmbeddingDataset, PyEmbedding  # type: ignore[import-not-found]
     _VECTRO_PY_AVAILABLE = True
     logger.debug("VectroRetrieverAdapter: vectro_py Rust bindings available — using SIMD path")
 except ImportError:
@@ -52,7 +52,7 @@ except ImportError:
 
 
 # ── Module-level singleton ───────────────────────────────────────────────────
-_adapter: "VectroRetrieverAdapter | None" = None
+_adapter: VectroRetrieverAdapter | None = None
 _adapter_lock = threading.Lock()
 
 
@@ -72,7 +72,7 @@ class VectroRetrieverAdapter:
         self._corpus_texts: list[str] = []
         self._corpus_sources: list[str] = []
         self._corpus_ids: list[str] = []
-        self._retriever: "VectroRetriever | None" = None  # Rust-backed, if available
+        self._retriever: VectroRetriever | None = None  # Rust-backed, if available
         self._bm25: object | None = None                  # rank_bm25 fallback
         self._lock = threading.Lock()
 
@@ -130,8 +130,8 @@ class VectroRetrieverAdapter:
     def _load_corpus(self) -> None:
         """Scroll Qdrant to populate the in-memory corpus."""
         try:
-            from konjoai.store.qdrant import get_store
             from konjoai.embed.encoder import get_encoder
+            from konjoai.store.qdrant import get_store
 
             store = get_store()
             total = store.count()

@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import inspect
 
-import pytest
-
 
 class TestAsyncSignatures:
     """Verify query endpoints are declared as coroutines."""

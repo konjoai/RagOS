@@ -10,19 +10,18 @@ import pytest
 
 import konjoai.telemetry as _tel_module
 from konjoai.telemetry import (
+    _HAS_OTEL,
+    _HAS_PROMETHEUS,
     KyroMetrics,
     KyroTracer,
     PipelineTelemetry,
     StepTiming,
-    _HAS_OTEL,
-    _HAS_PROMETHEUS,
     _noop_span,
     get_metrics,
     get_tracer,
     record_pipeline_metrics,
     timed,
 )
-
 
 # ---------------------------------------------------------------------------
 # StepTiming
