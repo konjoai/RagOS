@@ -254,9 +254,15 @@ class TestTenantScoping:
 class TestSingleflightDisabled:
     @pytest.mark.asyncio
     async def test_each_caller_computes_independently(self) -> None:
+        # offload_to_thread=False + asyncio.sleep(0) in compute is the only
+        # deterministic way to guarantee all three lookups happen before any
+        # store.  With offload_to_thread=True the thread pool may serialise
+        # lookup→store for task 1 before task 2's lookup runs, so task 2 sees
+        # a cache hit and skips compute — making attempts < 3 intermittently.
         cache = AsyncSemanticCache(
             SemanticCache(max_size=8, threshold=0.95),
             singleflight=False,
+            offload_to_thread=False,
         )
         v = _vec(40)
         attempts = 0
@@ -264,6 +270,8 @@ class TestSingleflightDisabled:
         async def compute() -> _StubResp:
             nonlocal attempts
             attempts += 1
+            # Yield so the other tasks can reach their lookup before we store.
+            await asyncio.sleep(0)
             return _StubResp(answer=f"v{attempts}")
 
         # Fire 3 concurrent identical misses with singleflight off.
