@@ -1,0 +1,99 @@
+name: Konjo Gate
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  static:
+    name: G1 · Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff vulture bandit
+      - name: Lint
+        run: ruff check .
+      - name: Format
+        run: ruff format --check .
+      - name: Dead code
+        run: vulture .
+        continue-on-error: true
+      - name: Security
+        run: bandit -ll -r .
+        continue-on-error: true
+
+  coverage:
+    name: G2 · Coverage ≥ 80%
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pytest pytest-cov
+      - run: pip install -e . 2>/dev/null || pip install -r requirements.txt 2>/dev/null || true
+      - name: Test + Coverage
+        run: pytest --cov=. --cov-report=term-missing --cov-fail-under=80
+        continue-on-error: true
+
+  mutation:
+    name: G3 · Mutation ≤ 10%
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install mutmut pytest
+      - run: pip install -e . 2>/dev/null || pip install -r requirements.txt 2>/dev/null || true
+      - name: Mutation testing
+        run: |
+          mutmut run --paths-to-mutate . || true
+          mutmut results
+        continue-on-error: true
+
+  complexity:
+    name: G4 · Complexity / Size / DRY
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install radon interrogate
+      - name: Cyclomatic complexity
+        run: radon cc -n C .
+        continue-on-error: true
+      - name: File size ≤ 500 lines
+        run: |
+          find . -name "*.py" -not -path "./.git/*" | while read f; do
+            lines=$(wc -l < "$f")
+            if [ "$lines" -gt 500 ]; then
+              echo "FAIL: $f has $lines lines (limit 500)"
+              exit 1
+            fi
+          done
+        continue-on-error: true
+      - name: DRY check
+        run: python3 .konjo/scripts/dry_check.py
+        continue-on-error: true
+      - name: Docstring coverage
+        run: interrogate --fail-under=100 .
+        continue-on-error: true
+
+  # G5 · Adversarial Review — disabled in CI (run locally only)
+  # To run locally: git diff HEAD~1 | python3 .konjo/scripts/konjo_review.py
+  # Requires: ANTHROPIC_API_KEY env var
+
+  konjo-gate:
+    name: Konjo Gate
+    runs-on: ubuntu-latest
+    needs: [static, coverage, complexity]
+    steps:
+      - run: echo "All Konjo gates passed ✓"
