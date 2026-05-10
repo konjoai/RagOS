@@ -1,0 +1,17 @@
+Terms of Service — Acceptable Use and Liability
+
+By using the Konjo AI API, you agree to these Terms. You may not use the
+Service to (a) generate content depicting child sexual abuse material; (b)
+plan, conduct, or facilitate any unlawful activity; (c) attempt to reverse
+engineer, decompile, or extract model weights; or (d) exceed published rate
+limits in a way that disrupts Service for other customers.
+
+We provide the Service on an "AS IS" basis. Our total aggregate liability for
+any claim arising out of or relating to the Service is limited to the greater
+of (i) one hundred US dollars (USD 100) or (ii) the fees you paid to us in the
+twelve (12) months preceding the claim.
+
+You are responsible for any output generated through your account. We grant
+you a non-exclusive, non-transferable license to use API outputs commercially,
+subject to the Acceptable Use Policy. Either party may terminate with thirty
+(30) days written notice; immediate termination is permitted for breach.

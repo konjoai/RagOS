@@ -1,0 +1,19 @@
+Metformin Dosing — Type 2 Diabetes Initiation and Titration
+
+Metformin is the preferred first-line oral antihyperglycemic agent for adult
+patients with type 2 diabetes mellitus, absent contraindications. Initiate
+at 500 mg orally once or twice daily with meals to reduce gastrointestinal
+side effects (nausea, diarrhea, abdominal discomfort). Titrate by 500 mg
+weekly as tolerated, to a maximum of 2000 mg per day in divided doses.
+
+Renal function must be assessed before initiation and at least annually.
+Estimated glomerular filtration rate (eGFR) thresholds:
+  - eGFR ≥ 60 mL/min/1.73 m²: standard dosing.
+  - eGFR 45–59: continue with caution; monitor renal function every 3–6 months.
+  - eGFR 30–44: do not initiate; reduce dose by 50% if already on therapy.
+  - eGFR < 30: contraindicated. Discontinue.
+
+Lactic acidosis is a rare but serious complication. Hold metformin during
+acute illness, dehydration, or before iodinated contrast imaging in
+patients with eGFR < 60. Vitamin B12 levels should be monitored every 1–2
+years on long-term therapy due to risk of malabsorption.

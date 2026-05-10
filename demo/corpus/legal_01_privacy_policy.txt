@@ -1,0 +1,17 @@
+Privacy Policy — Data Collection and Retention
+
+Konjo AI collects only the data required to deliver the Service: account email,
+billing address, and the content of API requests you submit. We retain request
+payloads for thirty (30) days for debugging and abuse detection, after which
+they are deleted from primary storage and rotated out of backups within an
+additional sixty (60) days.
+
+Under the GDPR (EU 2016/679) and the California Consumer Privacy Act, you have
+the right to access, correct, export, or delete your personal data. To exercise
+these rights, email privacy@konjo.ai with a verifiable request. We respond
+within thirty (30) calendar days.
+
+We do not sell personal data. We share data only with sub-processors listed in
+the Trust Center: Stripe (billing), Cloudflare (DDoS), and AWS (hosting).
+
+For questions, contact our Data Protection Officer at dpo@konjo.ai.

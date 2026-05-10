@@ -1,0 +1,22 @@
+Data Processing Addendum (DPA) — Controller and Processor Obligations
+
+This Addendum supplements the Master Services Agreement and governs the
+processing of Personal Data by Konjo AI ("Processor") on behalf of the
+Customer ("Controller") in compliance with Article 28 of the GDPR.
+
+Scope: Processor will process Personal Data only for the documented purpose
+of providing the Service, and only in accordance with Controller's lawful
+written instructions. Categories of data processed: identifiers, technical
+metadata, and the content of API requests submitted by Controller.
+
+Security: Processor implements appropriate technical and organizational
+measures including encryption at rest (AES-256), encryption in transit
+(TLS 1.3+), role-based access controls, immutable audit logs, and SOC 2
+Type II controls. Processor will notify Controller of any Personal Data
+breach without undue delay, and in any event within seventy-two (72) hours
+of becoming aware of the breach.
+
+Sub-processors: Processor may engage sub-processors only with Controller's
+prior general written authorization. The current list is published in the
+Trust Center; Controller will be notified of additions at least 30 days
+in advance.

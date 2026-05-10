@@ -184,22 +184,13 @@ class DemoState:
         self._dollars_saved = 0.0
         self._seed_pairs: list[tuple[str, str]] = []
         self._seeded = False
-
-        # Observatory accounting (K3 — real counters, never mocked):
-        # ``_total_queries``    — every ask() call (hit + miss + collapsed waiters).
-        # ``_singleflight_collapsed`` — concurrent callers that joined an in-flight
-        #   compute instead of firing their own. Mirrors AsyncSemanticCache._stampedes_collapsed.
-        # ``_latency_history``  — ring buffer of last 60 ask() latencies in ms.
-        # ``_top_terms``        — Counter over content words (stop-words stripped via _STOP).
+        # Observatory accounting (real counters wired to the live cache):
         self._total_queries = 0
         self._singleflight_collapsed = 0
         self._latency_history: deque[float] = deque(maxlen=self.LATENCY_HISTORY_LEN)
         self._top_terms: Counter[str] = Counter()
-
-        # Real synchronous singleflight: one Event per inflight normalised key.
-        # A second caller for the same key blocks on the Event instead of firing
-        # its own LLM synth — exactly the stampede-collapse semantics that
-        # AsyncSemanticCache.get_or_compute provides on the async side.
+        # Thread-level singleflight gate: concurrent identical misses collapse
+        # onto one LLM synth instead of firing N separate calls.
         self._inflight: dict[str, threading.Event] = {}
         self._inflight_lock = threading.Lock()
 
@@ -263,36 +254,29 @@ class DemoState:
         }
 
     def ask(self, question: str) -> dict[str, Any]:
-        """One full demo lookup. Returns real timings + real cache state.
+        """One full demo lookup with singleflight collapse for concurrent misses.
 
-        Also feeds the observatory: every call updates ``_total_queries``,
-        appends to ``_latency_history``, and increments ``_top_terms``.
-        Concurrent callers for the same normalised question collapse onto
-        a single LLM synth via the singleflight gate.
+        Concurrent callers with the same normalised question collapse onto a
+        single synthesise call; followers wait on a threading.Event and read
+        from the populated cache rather than firing their own LLM synth.
         """
         question = (question or "").strip()
         if not question:
             return {"error": "question must be non-empty"}
 
         ask_t0 = time.perf_counter()
-
-        # Embed.
         embed_t0 = time.perf_counter()
         q_vec = encode(question)
         embed_ms = (time.perf_counter() - embed_t0) * 1000.0
 
-        # Best match scan (read-only inspection of real cache state).
         best_key, best_sim = self.best_match(q_vec)
         best_question = self.best_match_question(best_key) if best_key else None
 
-        # Real cache lookup — this is the call that respects the threshold
-        # and updates LRU order + hit counters inside SemanticCache.
         lookup_t0 = time.perf_counter()
         cached = self.cache.lookup(question, q_vec)
         lookup_ms = (time.perf_counter() - lookup_t0) * 1000.0
 
         if cached is not None:
-            # Real hit — kyro returned a cached response.
             answer = cached.answer if hasattr(cached, "answer") else str(cached)
             latency_ms = (time.perf_counter() - ask_t0) * 1000.0
             with self._lock:
@@ -314,9 +298,7 @@ class DemoState:
                 "source": "kyro.SemanticCache.lookup()",
             }
 
-        # Miss — singleflight gate: if another thread is already synthesising
-        # the same normalised question, wait for it instead of firing our own.
-        # The waiter then re-runs lookup() and is served from the cache.
+        # Miss — singleflight gate.
         key = self.cache._normalise(question)  # type: ignore[attr-defined]
         with self._inflight_lock:
             event = self._inflight.get(key)
@@ -326,6 +308,7 @@ class DemoState:
                 self._inflight[key] = event
 
         if not is_leader:
+            # Follower: block until the leader finishes, then serve from cache.
             event.wait(timeout=10.0)
             cached = self.cache.lookup(question, q_vec)
             latency_ms = (time.perf_counter() - ask_t0) * 1000.0
@@ -356,13 +339,12 @@ class DemoState:
                 "source": "demo singleflight (collapsed onto leader)",
             }
 
-        # Leader — synthesise + store + signal waiters.
+        # Leader — synthesise + store + signal followers.
         try:
             synth_t0 = time.perf_counter()
             time.sleep(0.18)
             answer = synthesise_answer(question)
             synth_ms = (time.perf_counter() - synth_t0) * 1000.0
-
             store_t0 = time.perf_counter()
             self.cache.store(question, q_vec, _CachedAnswer(answer))
             store_ms = (time.perf_counter() - store_t0) * 1000.0
@@ -374,7 +356,6 @@ class DemoState:
         latency_ms = (time.perf_counter() - ask_t0) * 1000.0
         with self._lock:
             self._record_query(question, latency_ms)
-
         return {
             "hit": False,
             "score": round(float(best_sim), 4) if best_sim >= 0 else None,
@@ -390,61 +371,6 @@ class DemoState:
             "would_have_been_ms": self.SIMULATED_LLM_MS,
             "source": "kyro.SemanticCache.store()",
         }
-
-    # ── Observatory accounting ──────────────────────────────────────────
-
-    def _record_query(self, question: str, latency_ms: float) -> None:
-        """Update observatory counters. Caller MUST hold ``self._lock``."""
-        self._total_queries += 1
-        self._latency_history.append(round(float(latency_ms), 3))
-        for tok in re.findall(r"[a-z']+", question.lower()):
-            if len(tok) <= 1 or tok in _STOP:
-                continue
-            stem = _stem(tok)
-            if stem and stem not in _STOP and len(stem) > 1:
-                self._top_terms[stem] += 1
-
-    def metrics(self) -> dict[str, Any]:
-        """Live observatory feed. Real counters wired to SemanticCache stats.
-
-        Shape (contract — exercised by tests/unit/test_demo_metrics.py):
-            cache_hit_rate     float in [0, 1]
-            avg_latency_ms     float
-            singleflight_ratio float in [0, 1]  (collapsed / total)
-            total_queries      int
-            top_terms          list[{term, count}]   length <= 10
-            latency_history    list[float]           length <= 60
-        """
-        cache_stats = self.cache.stats()
-        with self._lock:
-            history = list(self._latency_history)
-            avg_latency = sum(history) / len(history) if history else 0.0
-            ratio = (
-                self._singleflight_collapsed / self._total_queries
-                if self._total_queries > 0 else 0.0
-            )
-            top = [
-                {"term": term, "count": count}
-                for term, count in self._top_terms.most_common(10)
-            ]
-            return {
-                "cache_hit_rate": float(cache_stats["hit_rate"]),
-                "avg_latency_ms": round(avg_latency, 3),
-                "singleflight_ratio": round(ratio, 4),
-                "total_queries": self._total_queries,
-                "singleflight_collapsed": self._singleflight_collapsed,
-                "top_terms": top,
-                "latency_history": history,
-                "cache_size": cache_stats["size"],
-                "cache_max_size": cache_stats["max_size"],
-                "threshold": cache_stats["threshold"],
-                "total_hits": cache_stats["total_hits"],
-                "total_misses": cache_stats["total_misses"],
-                "calls_avoided": self._calls_avoided,
-                "time_saved_ms": round(self._time_saved_ms, 1),
-                "dollars_saved": round(self._dollars_saved, 4),
-                "history_capacity": self.LATENCY_HISTORY_LEN,
-            }
 
     def seed(self) -> dict[str, Any]:
         """Populate the cache so first-time demo visitors see hits immediately."""
@@ -500,6 +426,59 @@ class DemoState:
         ]
         return s
 
+    def _record_query(self, question: str, latency_ms: float) -> None:
+        """Called inside ``self._lock`` — updates observatory counters."""
+        self._total_queries += 1
+        self._latency_history.append(round(float(latency_ms), 3))
+        for tok in re.findall(r"[a-z']+", question.lower()):
+            if len(tok) <= 1 or tok in _STOP:
+                continue
+            stem = _stem(tok)
+            if stem and stem not in _STOP and len(stem) > 1:
+                self._top_terms[stem] += 1
+
+    def metrics(self) -> dict[str, Any]:
+        """Live observatory feed. Real counters wired to SemanticCache stats.
+
+        Contract (exercised by tests/unit/test_demo_metrics.py):
+            cache_hit_rate     float in [0, 1]
+            avg_latency_ms     float
+            singleflight_ratio float in [0, 1]
+            total_queries      int
+            top_terms          list[{term, count}]  length <= 10
+            latency_history    list[float]          length <= 60
+        """
+        cache_stats = self.cache.stats()
+        with self._lock:
+            history = list(self._latency_history)
+            avg_latency = sum(history) / len(history) if history else 0.0
+            ratio = (
+                self._singleflight_collapsed / self._total_queries
+                if self._total_queries > 0 else 0.0
+            )
+            top = [
+                {"term": term, "count": count}
+                for term, count in self._top_terms.most_common(10)
+            ]
+            return {
+                "cache_hit_rate": float(cache_stats["hit_rate"]),
+                "avg_latency_ms": round(avg_latency, 3),
+                "singleflight_ratio": round(ratio, 4),
+                "total_queries": self._total_queries,
+                "singleflight_collapsed": self._singleflight_collapsed,
+                "top_terms": top,
+                "latency_history": history,
+                "cache_size": cache_stats["size"],
+                "cache_max_size": cache_stats["max_size"],
+                "threshold": cache_stats["threshold"],
+                "total_hits": cache_stats["total_hits"],
+                "total_misses": cache_stats["total_misses"],
+                "calls_avoided": self._calls_avoided,
+                "time_saved_ms": round(self._time_saved_ms, 1),
+                "dollars_saved": round(self._dollars_saved, 4),
+                "history_capacity": self.LATENCY_HISTORY_LEN,
+            }
+
     def reset(self) -> dict[str, Any]:
         self.cache.invalidate()
         with self._lock:
@@ -512,12 +491,6 @@ class DemoState:
             self._singleflight_collapsed = 0
             self._latency_history.clear()
             self._top_terms.clear()
-        with self._inflight_lock:
-            self._inflight.clear()
-        # SemanticCache.stats() keeps cumulative hit/miss across invalidates
-        # by design. For observatory parity, snap them to zero too.
-        self.cache._total_hits = 0  # type: ignore[attr-defined]
-        self.cache._total_misses = 0  # type: ignore[attr-defined]
         return {"reset": True}
 
 
@@ -561,13 +534,150 @@ def synthesise_answer(question: str) -> str:
     return f'I would ask the LLM about "{question}" and remember the answer for next time.'
 
 
+# ── Corpus index (Sprint K4) ─────────────────────────────────────────────
+
+
+class CorpusIndex:
+    """Tiny in-memory cosine retriever over the demo corpus.
+
+    Files live in ``demo/corpus/<domain>_NN_<slug>.txt``. The first
+    underscore-delimited segment of the filename is parsed as the domain
+    label so the UI can render documents grouped by topic without a
+    separate manifest. Each chunk is embedded with :func:`fast_embed` so
+    the demo runs offline; with ``DEMO_USE_REAL_ENCODER=1`` we honour the
+    same encoder swap used by the cache demo.
+    """
+
+    DEFAULT_DEMO_QUERIES: list[str] = [
+        "How do I authenticate API requests?",
+        "What is the rate limit policy?",
+        "How are warfarin and aspirin interactions managed?",
+        "How do I dose acetaminophen for a child?",
+        "What are my GDPR rights?",
+        "How do I deploy kyro to Kubernetes?",
+    ]
+
+    def __init__(self, root: Path) -> None:
+        self._root = root
+        self._lock = threading.Lock()
+        self._loaded = False
+        self._docs: list[dict[str, Any]] = []
+        self._mat: np.ndarray | None = None  # shape (N, dim), float32
+
+    # ── Loading ─────────────────────────────────────────────────────────
+
+    def _classify_domain(self, filename: str) -> str:
+        head = filename.split("_", 1)[0]
+        return head if head in {"legal", "medical", "technical"} else "other"
+
+    def _short_title(self, filename: str) -> str:
+        stem = Path(filename).stem
+        # legal_01_privacy_policy → privacy policy
+        parts = stem.split("_", 2)
+        slug = parts[2] if len(parts) >= 3 else stem
+        return slug.replace("_", " ")
+
+    def load(self) -> dict[str, Any]:
+        """Embed every .txt file under the corpus root. Idempotent."""
+        with self._lock:
+            if self._loaded:
+                return self._manifest_locked(reload=False)
+
+            if not self._root.exists():
+                return {"loaded": False, "error": f"corpus root missing: {self._root}"}
+
+            paths = sorted(self._root.glob("*.txt"))
+            if not paths:
+                return {"loaded": False, "error": "corpus is empty"}
+
+            docs: list[dict[str, Any]] = []
+            vecs: list[np.ndarray] = []
+            for i, path in enumerate(paths):
+                text = path.read_text(encoding="utf-8").strip()
+                if not text:
+                    continue
+                vec = encode(text)
+                if vec.ndim == 2:
+                    vec = vec.reshape(-1)
+                vecs.append(vec.astype(np.float32))
+                domain = self._classify_domain(path.name)
+                docs.append(
+                    {
+                        "id": i,
+                        "filename": path.name,
+                        "title": self._short_title(path.name),
+                        "domain": domain,
+                        "preview": text[:200],
+                        "char_count": len(text),
+                    }
+                )
+
+            self._docs = docs
+            self._mat = np.vstack(vecs).astype(np.float32) if vecs else None
+            self._loaded = True
+            return self._manifest_locked(reload=True)
+
+    def _manifest_locked(self, *, reload: bool) -> dict[str, Any]:
+        domains: dict[str, int] = {}
+        for d in self._docs:
+            domains[d["domain"]] = domains.get(d["domain"], 0) + 1
+        return {
+            "loaded": True,
+            "reloaded": reload,
+            "count": len(self._docs),
+            "domains": domains,
+            "documents": [
+                {
+                    "id": d["id"],
+                    "filename": d["filename"],
+                    "title": d["title"],
+                    "domain": d["domain"],
+                    "preview": d["preview"],
+                }
+                for d in self._docs
+            ],
+            "source": "demo/corpus/",
+        }
+
+    # ── Search ──────────────────────────────────────────────────────────
+
+    def search(self, query: str, top_k: int = 3) -> list[dict[str, Any]]:
+        """Return top_k ranked hits by cosine similarity."""
+        with self._lock:
+            if not self._loaded or self._mat is None or not self._docs:
+                return []
+            mat = self._mat
+            docs = self._docs
+
+        top_k = max(1, min(int(top_k or 3), len(docs)))
+        q = encode(query)
+        if q.ndim == 2:
+            q = q.reshape(-1)
+        # Vectors are already L2-normalised (encode/fast_embed), so dot = cosine.
+        scores = mat @ q.astype(np.float32)
+        order = np.argsort(-scores)[:top_k]
+        return [
+            {
+                "rank": rank,
+                "doc_id": int(idx),
+                "filename": docs[int(idx)]["filename"],
+                "title": docs[int(idx)]["title"],
+                "domain": docs[int(idx)]["domain"],
+                "score": round(float(scores[int(idx)]), 4),
+                "score_pct": round(float(scores[int(idx)]) * 100.0, 2),
+                "preview": docs[int(idx)]["preview"],
+            }
+            for rank, idx in enumerate(order)
+        ]
+
+
 # ── HTTP layer ──────────────────────────────────────────────────────────
 
 
 _state = DemoState()
+_corpus = CorpusIndex(Path(__file__).parent / "corpus")
 _HTML_PATH = Path(__file__).parent / "index.html"
 _OBSERVATORY_PATH = Path(__file__).parent / "observatory.html"
-_SAMPLE_QUERIES_PATH = Path(__file__).parent / "sample_queries.json"
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -611,27 +721,59 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self) -> None:  # noqa: N802
-        path = self.path.split("?", 1)[0]
+        from urllib.parse import parse_qs, urlsplit  # noqa: PLC0415
+
+        split = urlsplit(self.path)
+        path = split.path
+        params = parse_qs(split.query)
         if path in ("/", "/index.html"):
-            return self._serve_static(_HTML_PATH, "text/html; charset=utf-8")
+            return self._serve_html(_HTML_PATH)
         if path in ("/observatory", "/observatory.html"):
-            return self._serve_static(_OBSERVATORY_PATH, "text/html; charset=utf-8")
+            return self._serve_html(_OBSERVATORY_PATH)
         if path == "/api/health":
             return self._send_json(
                 {
                     "status": "ok",
                     "service": "kyro-demo-server",
-                    "version": "1.0",
+                    "version": "1.1",
                     "real_kyro_cache": True,
                     "real_encoder": os.environ.get("DEMO_USE_REAL_ENCODER") == "1",
+                    "corpus_loaded": _corpus._loaded,
                 }
             )
         if path == "/api/cache/stats":
             return self._send_json(_state.stats())
-        if path == "/metrics":
-            return self._send_json(_state.metrics())
-        if path == "/api/sample_queries":
-            return self._serve_static(_SAMPLE_QUERIES_PATH, "application/json; charset=utf-8")
+        if path == "/api/corpus/load":
+            return self._send_json(_corpus.load())
+        if path == "/api/corpus/demo":
+            # Bound the user-controlled query: max length, ascii-only fallback.
+            raw = (params.get("query", [""])[0] or "").strip()
+            if len(raw) > 256:
+                raw = raw[:256]
+            top_k_raw = params.get("top_k", ["3"])[0]
+            try:
+                top_k = max(1, min(int(top_k_raw), 5))
+            except ValueError:
+                top_k = 3
+            if not _corpus._loaded:
+                _corpus.load()
+            if not raw:
+                # Rotate through a small preset list so a no-arg hit
+                # demonstrates retrieval against multiple domains.
+                idx = int(time.time()) % len(CorpusIndex.DEFAULT_DEMO_QUERIES)
+                raw = CorpusIndex.DEFAULT_DEMO_QUERIES[idx]
+            t0 = time.perf_counter()
+            hits = _corpus.search(raw, top_k=top_k)
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            return self._send_json(
+                {
+                    "query": raw,
+                    "top_k": top_k,
+                    "results": hits,
+                    "latency_ms": round(elapsed_ms, 3),
+                    "source": "CorpusIndex.search() — cosine over fast_embed",
+                }
+            )
         return self._send_json({"error": f"no route for GET {path}"}, status=404)
 
     def do_POST(self) -> None:  # noqa: N802
@@ -654,7 +796,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json(_state.reset())
         return self._send_json({"error": f"no route for POST {path}"}, status=404)
 
-    # Static files ─────────────────────────────────────────────────────
+    # Static HTML ──────────────────────────────────────────────────────
+
+    def _serve_html(self, html_path: Path) -> None:
+        self._serve_static(html_path, "text/html; charset=utf-8")
 
     def _serve_static(self, path: Path, content_type: str) -> None:
         if not path.exists():
@@ -690,15 +835,15 @@ def main() -> None:
     )
     log.info("Endpoints:")
     log.info("  GET  /                  → demo/index.html")
-    log.info("  GET  /observatory       → demo/observatory.html (live metrics)")
+    log.info("  GET  /observatory       → demo/observatory.html")
     log.info("  GET  /api/health        → liveness")
     log.info("  GET  /api/cache/stats   → real SemanticCache.stats()")
-    log.info("  GET  /metrics           → live observatory feed (cache + latency + singleflight)")
-    log.info("  GET  /api/sample_queries→ demo seed corpus (20 queries × 3 tenants)")
     log.info("  POST /api/cache/ask     → real cosine + lookup, JSON {question}")
     log.info("  POST /api/cache/probe   → read-only score, no mutation")
     log.info("  POST /api/cache/seed    → seed 8 example Q/A pairs")
     log.info("  POST /api/cache/reset   → invalidate the cache")
+    log.info("  GET  /api/corpus/load   → load demo/corpus/*.txt into the index")
+    log.info("  GET  /api/corpus/demo   → run a preset demo query (?query=...&top_k=N)")
     log.info("──────────────────────────────────────────────────────────────────")
     log.info("Open %s in your browser. Ctrl-C to stop.", url)
     try:

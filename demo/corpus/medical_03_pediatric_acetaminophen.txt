@@ -1,0 +1,19 @@
+Pediatric Acetaminophen Dosing — Fever and Pain
+
+Acetaminophen (paracetamol) is the preferred first-line antipyretic and
+analgesic for infants and children. Dosing must be calculated by weight,
+not by age, to avoid hepatotoxicity from accidental overdose.
+
+Recommended oral dose: 10–15 mg/kg per dose, every 4–6 hours as needed.
+Maximum total daily dose: 75 mg/kg, not to exceed 4 grams in 24 hours for
+older children. Round to the nearest 0.4 mL for the 160 mg/5 mL infant
+suspension to prevent dosing errors.
+
+Do not exceed five (5) doses in 24 hours. Do not give to infants younger
+than 3 months without consulting a healthcare provider. Avoid concurrent
+use of multi-symptom cold preparations that already contain acetaminophen.
+
+Hepatotoxicity is the principal risk: a single ingestion above 150 mg/kg or
+chronic dosing above the maximum daily limit can cause fulminant hepatic
+failure. Suspected overdose requires immediate evaluation and consideration
+of N-acetylcysteine (NAC) per the Rumack-Matthew nomogram.

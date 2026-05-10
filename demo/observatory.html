@@ -1,671 +1,723 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Kyro Observatory</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>kyro · Observatory</title>
 <style>
   :root {
-    --mono: ui-monospace,"SF Mono","Menlo",Consolas,monospace;
-    --sans: -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;
+    --bg: #06060f;
+    --bg-haze: rgba(8, 10, 24, 0.78);
+    --ink: #e6f1ff;
+    --ink-dim: #8597b8;
+    --ink-faint: #4a5878;
+    --hit: #5cffb1;
+    --miss: #6cb6ff;
+    --warm: #ffd166;
+    --hot: #ff7a7a;
+    --legal: #b594ff;
+    --medical: #ff9bd2;
+    --technical: #5cffb1;
+    --band: rgba(92, 255, 177, 0.15);
+    --band-edge: rgba(92, 255, 177, 0.55);
   }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body {
-    overflow: hidden; width: 100%; height: 100%;
-    background: #030812; color: #cfe7ff;
-    font-family: var(--mono); font-size: 11px;
-    -webkit-font-smoothing: antialiased;
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); height: 100%; overflow: hidden; }
+  body {
+    font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+    line-height: 1.5;
   }
-  canvas#c {
-    display: block; position: fixed; inset: 0; z-index: 0;
-    will-change: transform;
-  }
-  /* ── Overlay UI ─────────────────────────────────────────────────── */
-  #ui {
-    position: fixed; inset: 0; z-index: 10;
-    pointer-events: none;
-    display: flex; flex-direction: column; justify-content: space-between;
-    padding: 12px 14px 10px;
+
+  /* ── Layout ────────────────────────────────────────────────────────── */
+  #stage {
+    position: fixed; inset: 0;
+    display: grid;
+    grid-template-rows: 56px 1fr 220px;
+    grid-template-columns: 280px 1fr 280px;
+    grid-template-areas:
+      "head head head"
+      "left river right"
+      "bot  bot  bot";
     gap: 0;
   }
-  /* ── Top bar ──────────────────────────────────────────────────── */
-  #topbar {
-    display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;
+  /* Particle canvas spans the river area */
+  #river-canvas { grid-area: river; width: 100%; height: 100%; display: block; }
+
+  header.ohead {
+    grid-area: head;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+    backdrop-filter: blur(6px);
+    z-index: 5;
   }
-  .obs-logo {
-    display: flex; align-items: center; gap: 7px; flex-shrink: 0;
-    border: 1px solid rgba(106,255,213,0.3); border-radius: 8px;
-    padding: 5px 11px;
-    background: rgba(3,8,18,0.75); backdrop-filter: blur(10px);
-    letter-spacing: 0.14em; text-transform: uppercase;
-    font-size: 10.5px; font-weight: 700; color: #6affd5;
+  header.ohead .brand { display: flex; align-items: center; gap: 14px; }
+  header.ohead .logo {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, var(--hit), #1d4d3a 80%);
+    box-shadow: 0 0 14px rgba(92,255,177,0.55);
   }
-  .live-dot {
-    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-    background: #6affd5; box-shadow: 0 0 9px #6affd5;
-    animation: blink 1.9s ease-in-out infinite;
+  header.ohead h1 {
+    font-size: 14px; font-weight: 600; margin: 0; letter-spacing: 0.18em; text-transform: uppercase;
   }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-  .obs-sub { color: rgba(90,120,154,0.9); font-size: 10px; letter-spacing: 0.04em; }
-  /* ── Stats strip ──────────────────────────────────────────────── */
-  #statsrow {
-    margin-left: auto; display: flex; gap: 0; align-items: stretch;
-    background: rgba(3,8,18,0.72); backdrop-filter: blur(10px);
-    border: 1px solid rgba(106,255,213,0.13); border-radius: 9px;
+  header.ohead .meta { display: flex; gap: 18px; color: var(--ink-dim); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+  header.ohead .meta b { color: var(--ink); font-weight: 500; }
+  header.ohead .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--hit); box-shadow: 0 0 10px var(--hit); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+  /* ── Side panels ──────────────────────────────────────────────────── */
+  aside {
+    background: var(--bg-haze);
+    border-right: 1px solid rgba(255,255,255,0.04);
+    overflow-y: auto;
+    padding: 18px 16px 28px;
+    backdrop-filter: blur(8px);
+    z-index: 4;
+  }
+  aside.right { grid-area: right; border-right: none; border-left: 1px solid rgba(255,255,255,0.04); }
+  aside.left { grid-area: left; }
+
+  .panel { margin-bottom: 24px; }
+  .panel h2 {
+    margin: 0 0 10px; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 600;
+  }
+
+  /* ── Water-level gauge (hit rate) ─────────────────────────────────── */
+  .gauge-shell {
+    position: relative;
+    width: 100%; height: 130px;
+    border: 1px solid rgba(92,255,177,0.25);
+    border-radius: 8px;
     overflow: hidden;
+    background: rgba(255,255,255,0.02);
   }
-  .stat {
-    display: flex; flex-direction: column; align-items: center;
-    justify-content: center; gap: 1px;
-    padding: 6px 14px; min-width: 62px;
-    border-right: 1px solid rgba(255,255,255,0.06);
+  .gauge-water {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 0%;
+    background: linear-gradient(180deg, rgba(92,255,177,0.85), rgba(36,140,98,0.95));
+    transition: height 480ms cubic-bezier(.22,.9,.3,1);
+    box-shadow: 0 0 24px rgba(92,255,177,0.55) inset;
   }
-  .stat:last-child { border-right: 0; }
-  .stat-val {
-    font-size: 17px; font-weight: 700; letter-spacing: -0.02em;
-    color: #e8f4ff; line-height: 1;
+  .gauge-water::before {
+    content: ""; position: absolute; left: -50%; right: -50%; top: -8px; height: 14px;
+    background: linear-gradient(180deg, rgba(180,255,222,0.95), transparent);
+    border-radius: 50%;
+    animation: ripple 3.4s ease-in-out infinite;
   }
-  .stat-lbl {
-    font-size: 8.5px; color: rgba(90,120,154,0.8);
-    text-transform: uppercase; letter-spacing: 0.08em;
+  @keyframes ripple {
+    0%, 100% { transform: translateX(0) scaleY(1); }
+    50% { transform: translateX(8%) scaleY(1.18); }
   }
-  #hitRateVal { transition: color 0.5s ease; }
-  /* ── Singleflight badge ───────────────────────────────────────── */
-  #sfBadge {
-    position: fixed; top: 56px; left: 50%; transform: translateX(-50%);
-    pointer-events: none; z-index: 20;
-    background: rgba(3,8,18,0.88); backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.35); border-radius: 999px;
-    padding: 5px 18px; font-size: 11px; color: #fff; letter-spacing: 0.07em;
-    text-shadow: 0 0 14px rgba(106,255,213,0.9);
-    opacity: 0; transition: opacity 0.28s ease;
-    white-space: nowrap;
+  .gauge-shell .gauge-readout {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 28px; font-weight: 600; letter-spacing: 0.04em;
+    text-shadow: 0 1px 12px rgba(0,0,0,0.6);
+    color: var(--ink);
   }
-  /* ── Bottom row ───────────────────────────────────────────────── */
-  #bottom { display: flex; align-items: flex-end; gap: 10px; }
-  #ekgWrap {
-    flex: 1; background: rgba(3,8,18,0.68); backdrop-filter: blur(10px);
-    border: 1px solid rgba(106,255,213,0.13); border-radius: 10px;
-    padding: 8px 12px;
+  .gauge-readout small { font-size: 11px; opacity: 0.55; margin-left: 4px; }
+
+  /* ── EKG sparkline ────────────────────────────────────────────────── */
+  #ekg {
+    width: 100%; height: 80px; display: block;
+    background: linear-gradient(180deg, rgba(92,255,177,0.04), rgba(108,182,255,0.03));
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.05);
   }
-  .panel-lbl {
-    font-size: 8.5px; color: rgba(90,120,154,0.8); text-transform: uppercase;
-    letter-spacing: 0.1em; margin-bottom: 5px;
-    display: flex; justify-content: space-between; align-items: center;
+
+  /* ── Venn diagram (singleflight) ──────────────────────────────────── */
+  .venn-shell { position: relative; height: 110px; display: flex; align-items: center; justify-content: center; }
+  .venn-circle {
+    position: absolute; width: 78px; height: 78px; border-radius: 50%;
+    border: 1.5px solid var(--miss);
+    background: rgba(108, 182, 255, 0.10);
+    transition: transform 600ms cubic-bezier(.22,.9,.3,1), background 600ms;
+    mix-blend-mode: screen;
   }
-  .panel-live { color: #6affd5; }
-  canvas#ekg { display: block; height: 46px; width: 100%; }
-  #queryWrap {
-    width: 270px; pointer-events: all; flex-shrink: 0;
-    background: rgba(3,8,18,0.72); backdrop-filter: blur(10px);
-    border: 1px solid rgba(106,255,213,0.2); border-radius: 10px;
-    padding: 8px 12px;
+  .venn-circle.left { transform: translateX(-22px); }
+  .venn-circle.right { transform: translateX(22px); border-color: var(--hit); background: rgba(92,255,177,0.10); }
+  .venn-shell.collapsed .venn-circle.left  { transform: translateX(-6px); background: rgba(108,182,255,0.30); }
+  .venn-shell.collapsed .venn-circle.right { transform: translateX(6px);  background: rgba(92,255,177,0.30); }
+  .venn-overlap {
+    position: absolute; top: 50%; left: 50%;
+    width: 0; height: 60px; transform: translate(-50%, -50%);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+    border-radius: 50%;
+    transition: width 600ms cubic-bezier(.22,.9,.3,1);
+    pointer-events: none;
   }
-  #queryInput {
-    width: 100%; background: transparent; border: 0; outline: 0;
-    color: #e8f4ff; font-family: var(--mono); font-size: 12px;
-    caret-color: #6affd5;
+
+  /* ── Tag cloud ────────────────────────────────────────────────────── */
+  #tagcloud {
+    display: flex; flex-wrap: wrap; gap: 6px 10px;
+    min-height: 90px;
+    align-content: flex-start;
   }
-  #queryInput::placeholder { color: rgba(90,120,154,0.7); }
-  /* ── Legend ───────────────────────────────────────────────────── */
-  #legend {
-    position: fixed; bottom: 96px; right: 14px; z-index: 10;
-    background: rgba(3,8,18,0.65); backdrop-filter: blur(10px);
-    border: 1px solid rgba(106,255,213,0.1); border-radius: 10px;
-    padding: 9px 12px; display: flex; flex-direction: column; gap: 5px;
+  .tag {
+    color: var(--ink); opacity: 0.55;
+    transition: opacity 400ms, color 400ms, transform 400ms;
+    cursor: default;
   }
-  .leg { display: flex; align-items: center; gap: 7px;
-    font-size: 8.5px; color: rgba(90,120,154,0.85);
-    text-transform: uppercase; letter-spacing: 0.07em; }
-  .leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tag.fresh { color: var(--hit); opacity: 1; }
+  .tag.warm { color: var(--warm); opacity: 0.85; }
+  .tag.cold { color: var(--ink-dim); opacity: 0.45; }
+  .tag:hover { transform: translateY(-1px); opacity: 1; }
+
+  /* ── Stat rows ────────────────────────────────────────────────────── */
+  .row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed rgba(255,255,255,0.06); font-size: 12px; }
+  .row:last-child { border-bottom: none; }
+  .row span:first-child { color: var(--ink-dim); }
+  .row span:last-child { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* ── Cache band overlay ───────────────────────────────────────────── */
+  .cache-band {
+    position: absolute; left: 0; right: 0; height: 92px; top: 50%; transform: translateY(-50%);
+    background: linear-gradient(180deg, transparent 0%, var(--band) 50%, transparent 100%);
+    border-top: 1px solid var(--band-edge);
+    border-bottom: 1px solid var(--band-edge);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .cache-band::after {
+    content: "CACHE LAYER · cosine ≥ threshold";
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    font-size: 9.5px; letter-spacing: 0.28em; color: rgba(92,255,177,0.55);
+    text-transform: uppercase;
+  }
+  .river-wrap { grid-area: river; position: relative; overflow: hidden; }
+  .river-wrap > #river-canvas { position: absolute; inset: 0; }
+  .river-wrap > .cache-band { z-index: 2; }
+  .river-wrap > .threshold-readout {
+    position: absolute; left: 18px; bottom: 18px; z-index: 3;
+    font-size: 10.5px; color: var(--ink-dim); letter-spacing: 0.24em; text-transform: uppercase;
+  }
+
+  /* ── Bottom corpus islands ────────────────────────────────────────── */
+  footer.islands {
+    grid-area: bot;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding: 18px 24px;
+    background: var(--bg-haze);
+    backdrop-filter: blur(8px);
+    z-index: 4;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px;
+  }
+  .island {
+    position: relative;
+    border-radius: 12px;
+    padding: 14px 16px 12px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+    min-height: 158px;
+  }
+  .island::before {
+    content: "";
+    position: absolute; inset: -50% -10% auto -10%;
+    height: 200%;
+    background: radial-gradient(ellipse at center, var(--glow, transparent) 0%, transparent 70%);
+    opacity: 0.55; pointer-events: none;
+  }
+  .island.legal { --glow: rgba(181,148,255,0.32); }
+  .island.medical { --glow: rgba(255,155,210,0.32); }
+  .island.technical { --glow: rgba(92,255,177,0.32); }
+  .island h3 {
+    margin: 0 0 6px; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink); display: flex; align-items: center; gap: 8px;
+  }
+  .island.legal h3 { color: var(--legal); }
+  .island.medical h3 { color: var(--medical); }
+  .island.technical h3 { color: var(--technical); }
+  .island h3 .count { color: var(--ink-dim); font-size: 10px; letter-spacing: 0.12em; }
+  .island ul { list-style: none; margin: 0; padding: 0; max-height: 110px; overflow-y: auto; }
+  .island li {
+    font-size: 11.5px; padding: 3px 0;
+    color: var(--ink-dim);
+    border-bottom: 1px dashed rgba(255,255,255,0.04);
+  }
+  .island li:hover { color: var(--ink); }
+
+  /* ── Probe input row (top-right) ──────────────────────────────────── */
+  .probe-row { display: flex; gap: 8px; }
+  .probe-row input {
+    flex: 1; padding: 8px 10px; font: inherit;
+    background: rgba(255,255,255,0.04); color: var(--ink);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 6px;
+    outline: none;
+  }
+  .probe-row input:focus { border-color: var(--hit); box-shadow: 0 0 0 3px rgba(92,255,177,0.15); }
+  .probe-row button {
+    padding: 8px 14px; font: inherit; cursor: pointer;
+    background: var(--hit); color: #052517; border: none; border-radius: 6px; font-weight: 600;
+  }
+  .probe-row button:hover { filter: brightness(1.08); }
+  .probe-out { margin-top: 8px; font-size: 11.5px; color: var(--ink-dim); min-height: 16px; }
+
+  /* ── Stats numeric tiles ──────────────────────────────────────────── */
+  .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+  .tile { padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+  .tile .k { font-size: 9.5px; letter-spacing: 0.2em; color: var(--ink-faint); text-transform: uppercase; }
+  .tile .v { font-size: 18px; font-weight: 600; color: var(--ink); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .tile .v small { font-size: 11px; color: var(--ink-dim); margin-left: 3px; }
+
+  /* ── Misc ─────────────────────────────────────────────────────────── */
+  .nav-link { color: var(--ink-dim); text-decoration: none; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; }
+  .nav-link:hover { color: var(--hit); }
+  .scroll-fade { mask-image: linear-gradient(180deg, transparent, #000 12px, #000 calc(100% - 12px), transparent); }
 </style>
 </head>
 <body>
-
-<canvas id="c"></canvas>
-
-<div id="ui">
-  <div id="topbar">
-    <div class="obs-logo"><span class="live-dot"></span>Kyro Observatory</div>
-    <span class="obs-sub">v1.3.0 &middot; semantic cache &middot; singleflight</span>
-    <div id="statsrow">
-      <div class="stat"><span class="stat-val" id="hitRateVal">—</span><span class="stat-lbl">hit&nbsp;rate</span></div>
-      <div class="stat"><span class="stat-val" id="hitsVal">0</span><span class="stat-lbl">hits</span></div>
-      <div class="stat"><span class="stat-val" id="missesVal">0</span><span class="stat-lbl">misses</span></div>
-      <div class="stat"><span class="stat-val" id="savedVal">0.0s</span><span class="stat-lbl">saved</span></div>
-      <div class="stat"><span class="stat-val" id="inflightVal">0</span><span class="stat-lbl">in-flight</span></div>
-    </div>
-  </div>
-
-  <div id="bottom">
-    <div id="ekgWrap">
-      <div class="panel-lbl">
-        <span>cache hit-rate · EKG</span>
-        <span class="panel-live">● live</span>
+  <div id="stage">
+    <header class="ohead">
+      <div class="brand">
+        <div class="logo"></div>
+        <h1>kyro · observatory</h1>
+        <span class="pulse" title="server live"></span>
       </div>
-      <canvas id="ekg"></canvas>
+      <div class="meta">
+        <span>cache · <b id="metaSize">0</b></span>
+        <span>queries · <b id="metaQueries">0</b></span>
+        <span>collapses · <b id="metaCollapses">0</b></span>
+        <a href="/" class="nav-link">↩ search</a>
+      </div>
+    </header>
+
+    <aside class="left">
+      <div class="panel">
+        <h2>Hit Rate</h2>
+        <div class="gauge-shell" title="liquid rises with cache hit rate">
+          <div class="gauge-water" id="gaugeWater"></div>
+          <div class="gauge-readout"><span id="gaugeText">0</span><small>%</small></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Latency · EKG</h2>
+        <canvas id="ekg" width="248" height="80"></canvas>
+      </div>
+
+      <div class="panel">
+        <h2>Singleflight</h2>
+        <div class="venn-shell" id="venn">
+          <div class="venn-circle left"></div>
+          <div class="venn-circle right"></div>
+          <div class="venn-overlap" id="vennOverlap"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Snapshot</h2>
+        <div class="tiles">
+          <div class="tile"><div class="k">avg ms</div><div class="v" id="tileAvg">0<small>ms</small></div></div>
+          <div class="tile"><div class="k">p95 ms</div><div class="v" id="tileP95">0<small>ms</small></div></div>
+          <div class="tile"><div class="k">saved $</div><div class="v" id="tileDollars">0</div></div>
+          <div class="tile"><div class="k">backend</div><div class="v" style="font-size:11px;line-height:1.3" id="tileBackend">memory</div></div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="river-wrap">
+      <canvas id="river-canvas"></canvas>
+      <div class="cache-band"></div>
+      <div class="threshold-readout">RIVER OF KNOWLEDGE · particles flow left → right · hits bounce, misses dive</div>
     </div>
-    <div id="queryWrap">
-      <div class="panel-lbl">inject query → river</div>
-      <input id="queryInput" type="text"
-             placeholder="type a question…"
-             autocomplete="off" spellcheck="false"/>
-    </div>
+
+    <aside class="right">
+      <div class="panel">
+        <h2>Probe a Question</h2>
+        <div class="probe-row">
+          <input id="probeInput" placeholder="ask the river…" autocomplete="off" />
+          <button id="probeBtn">ask</button>
+        </div>
+        <div class="probe-out" id="probeOut">enter resolves; the cache responds.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Top Queries</h2>
+        <div id="tagcloud" class="scroll-fade"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Stats Stream</h2>
+        <div class="row"><span>cache size</span><span id="rowSize">—</span></div>
+        <div class="row"><span>threshold</span><span id="rowThresh">—</span></div>
+        <div class="row"><span>hits</span><span id="rowHits">—</span></div>
+        <div class="row"><span>misses</span><span id="rowMiss">—</span></div>
+        <div class="row"><span>calls avoided</span><span id="rowAvoid">—</span></div>
+        <div class="row"><span>time saved</span><span id="rowTime">—</span></div>
+      </div>
+    </aside>
+
+    <footer class="islands" id="islands">
+      <div class="island legal" data-domain="legal">
+        <h3><span>Legal</span><span class="count" data-count>0 docs</span></h3>
+        <ul data-list></ul>
+      </div>
+      <div class="island medical" data-domain="medical">
+        <h3><span>Medical</span><span class="count" data-count>0 docs</span></h3>
+        <ul data-list></ul>
+      </div>
+      <div class="island technical" data-domain="technical">
+        <h3><span>Technical</span><span class="count" data-count>0 docs</span></h3>
+        <ul data-list></ul>
+      </div>
+    </footer>
   </div>
-</div>
-
-<div id="sfBadge"></div>
-
-<div id="legend">
-  <div class="leg"><div class="leg-dot" style="background:#e0f0ff;box-shadow:0 0 7px #88ccff"></div>fresh hit (ice-blue)</div>
-  <div class="leg"><div class="leg-dot" style="background:#ffd700;box-shadow:0 0 7px #ff9900"></div>aged entry (gold)</div>
-  <div class="leg"><div class="leg-dot" style="background:#ff7070;box-shadow:0 0 7px #ff4444"></div>cache miss</div>
-  <div class="leg"><div class="leg-dot" style="background:#fff;box-shadow:0 0 7px #fff"></div>injected / fused</div>
-</div>
 
 <script>
-'use strict';
-/* ── Config ─────────────────────────────────────────────────────────── */
-const N           = 160;
-const MAX_SPD     = 3.4;
-const DAMP        = 0.974;
-const REP_R       = 30;
-const REP_F       = 55;
-const AGE_MAX     = 200;       // frames to lerp ice-blue → gold  (~3.3 s)
-const BAND_MID    = 0.44;      // cache band vertical centre (frac of H)
-const BAND_HALF   = 0.12;      // half-height (frac of H)
-const HIT_PROB    = 0.63;      // baseline cache-hit probability
-const LLM_MS      = 800;       // simulated cold-path cost (ms)
-const SF_EVERY    = 5000;      // ms between singleflight events
-const SF_DUR      = 420;       // ms for fusion animation
-const SF_N        = 4;         // followers per fusion event
-const FLASH_LIFE  = 30;        // frames
-const EKG_LEN     = 220;       // sparkline history points
-const EKG_TICK    = 28;        // frames between EKG samples
+(() => {
+  "use strict";
+  const API = location.origin.startsWith("http") ? location.origin : "http://127.0.0.1:8766";
 
-/* ── Globals (sized on load) ─────────────────────────────────────────── */
-let W, H, BW, BH;
-let bandMid, bandTop, bandBot;
-
-/* ── Canvas ─────────────────────────────────────────────────────────── */
-const C    = document.getElementById('c');
-const ctx  = C.getContext('2d');
-const EKG  = document.getElementById('ekg');
-const ectx = EKG.getContext('2d');
-
-function resize() {
-  W  = C.width  = window.innerWidth;
-  H  = C.height = window.innerHeight;
-  BW = EKG.width  = EKG.parentElement.clientWidth - 24;
-  BH = EKG.height = 46;
-  bandMid = H * BAND_MID;
-  bandTop = bandMid - H * BAND_HALF;
-  bandBot = bandMid + H * BAND_HALF;
-}
-
-/* ── Utilities ────────────────────────────────────────────────────── */
-const TAU   = Math.PI * 2;
-const rnd   = Math.random.bind(Math);
-const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
-const lerp  = (a,b,t) => a + (b-a) * clamp(t,0,1);
-
-// Spring overshoot — approx cubic-bezier(0.34, 1.56, 0.64, 1)
-function springEase(t) {
-  const c1 = 1.70158, c3 = c1 + 1;
-  return 1 + c3 * Math.pow(t-1,3) + c1 * Math.pow(t-1,2);
-}
-// Fast ease-out — approx cubic-bezier(0.23, 1, 0.32, 1)
-function easeOut(t) { return 1 - Math.pow(1-t, 3); }
-
-/* colour component lerp over particle age */
-const ICE_F  = [224, 240, 255]; const ICE_S  = [136, 204, 255];
-const GOLD_F = [255, 215,   0]; const GOLD_S = [255, 153,   0];
-const MISS_F = [255, 112, 112]; const MISS_S = [255,  68,  68];
-
-function pColor(p) {
-  if (p.injected) return { fill:'#ffffff', shadow:'rgba(255,255,255,0.85)' };
-  if (p.miss) {
-    const t2 = Math.min(1, p.age/100);
-    return {
-      fill:   `rgb(${lerp(ICE_F[0],MISS_F[0],t2)|0},${lerp(ICE_F[1],MISS_F[1],t2)|0},${lerp(ICE_F[2],MISS_F[2],t2)|0})`,
-      shadow: `rgb(${lerp(ICE_S[0],MISS_S[0],t2)|0},${lerp(ICE_S[1],MISS_S[1],t2)|0},${lerp(ICE_S[2],MISS_S[2],t2)|0})`,
-    };
-  }
-  const t2 = Math.min(1, p.age/AGE_MAX);
-  return {
-    fill:   `rgb(${lerp(ICE_F[0],GOLD_F[0],t2)|0},${lerp(ICE_F[1],GOLD_F[1],t2)|0},${lerp(ICE_F[2],GOLD_F[2],t2)|0})`,
-    shadow: `rgb(${lerp(ICE_S[0],GOLD_S[0],t2)|0},${lerp(ICE_S[1],GOLD_S[1],t2)|0},${lerp(ICE_S[2],GOLD_S[2],t2)|0})`,
+  // ── State ───────────────────────────────────────────────────────────
+  const state = {
+    queries: 0, hits: 0, misses: 0, collapses: 0,
+    latencies: [],   // last 64 latency_ms samples
+    tags: new Map(), // question -> { count, last }
+    domainCounts: { legal: 0, medical: 0, technical: 0 },
+    ripples: [],     // active particle ripples
   };
-}
 
-/* ── Wave functions (cache band membrane) ───────────────────────────── */
-function wTop(x, t) {
-  return bandTop + 5*Math.sin(x*0.05 + t*0.003) + 2.5*Math.sin(x*0.09 - t*0.005);
-}
-function wBot(x, t) {
-  return bandBot + 4*Math.sin(x*0.06 + t*0.0035 + 1.1) + 2*Math.sin(x*0.10 - t*0.006);
-}
-
-/* ── Particle pool ─────────────────────────────────────────────────── */
-let particles = [];
-let simHits = 0, simMisses = 0;
-let ekgAccH = 0, ekgAccM = 0;
-
-function spawn(opts = {}) {
-  const miss = opts.miss ?? (rnd() > HIT_PROB);
-  const bh   = bandBot - bandTop;
-  const p = {
-    x:       opts.x  ?? rnd() * W,
-    y:       opts.y  ?? (bandTop + 12 + rnd() * (bh - 24)),
-    vx:      opts.vx ?? (1.3 + rnd() * 1.5),
-    vy:      opts.vy ?? ((rnd()-0.5) * 0.7),
-    mass:    0.6 + rnd() * 1.4,
-    age:     opts.age ?? Math.floor(rnd() * AGE_MAX),
-    r:       opts.r   ?? (2.0 + rnd() * 1.4),
-    miss,
-    injected: opts.injected ?? false,
-    fusing:   false,
-    alive:    true,
-  };
-  if (!opts.injected && opts.count !== false) {
-    if (miss) { simMisses++; ekgAccM++; }
-    else      { simHits++;   ekgAccH++; }
+  // ── Particle river ──────────────────────────────────────────────────
+  const canvas = document.getElementById("river-canvas");
+  const ctx = canvas.getContext("2d");
+  let W = 0, H = 0, BAND_TOP = 0, BAND_BOT = 0;
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    W = rect.width; H = rect.height;
+    BAND_TOP = H/2 - 46; BAND_BOT = H/2 + 46;
   }
-  return p;
-}
+  window.addEventListener("resize", resize);
 
-function initParticles() {
-  particles = [];
-  for (let i = 0; i < N; i++) particles.push(spawn());
-}
-
-/* ── Corpus islands ─────────────────────────────────────────────────── */
-const ISLANDS = [
-  { name:'legal',     cxf:0.11, cyf:0.20, baseR:52, hex:'#ff9900', hex2:'#ffcc44', phase:0.0   },
-  { name:'medical',   cxf:0.85, cyf:0.17, baseR:46, hex:'#00ffcc', hex2:'#88ffee', phase:2.09  },
-  { name:'technical', cxf:0.52, cyf:0.72, baseR:58, hex:'#00ff88', hex2:'#44ffaa', phase:4.19  },
-];
-
-function drawIslands(t) {
-  ISLANDS.forEach(isl => {
-    const cx = isl.cxf * W, cy = isl.cyf * H;
-    const a1 = 0.28 + 0.20 * Math.sin(t * 0.002   + isl.phase);
-    const a2 = 0.14 + 0.10 * Math.sin(t * 0.002   + isl.phase + 0.8);
-    const a3 = 0.06 + 0.04 * Math.sin(t * 0.002   + isl.phase + 1.7);
-    // outer ambient glow
-    let g = ctx.createRadialGradient(cx,cy,0,cx,cy,isl.baseR*3.5);
-    g.addColorStop(0, isl.hex + Math.round(a3*255).toString(16).padStart(2,'0'));
-    g.addColorStop(1, 'transparent');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx,cy,isl.baseR*3.5,0,TAU); ctx.fill();
-    // mid glow
-    g = ctx.createRadialGradient(cx,cy,0,cx,cy,isl.baseR*2.0);
-    g.addColorStop(0, isl.hex + Math.round(a2*255).toString(16).padStart(2,'0'));
-    g.addColorStop(1, 'transparent');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx,cy,isl.baseR*2.0,0,TAU); ctx.fill();
-    // inner bright core
-    g = ctx.createRadialGradient(cx,cy,0,cx,cy,isl.baseR);
-    g.addColorStop(0,   isl.hex2 + Math.round(a1*255).toString(16).padStart(2,'0'));
-    g.addColorStop(0.55, isl.hex + Math.round(a1*0.45*255).toString(16).padStart(2,'0'));
-    g.addColorStop(1,   'transparent');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx,cy,isl.baseR,0,TAU); ctx.fill();
-    // label
-    ctx.save();
-    ctx.globalAlpha = a1 * 1.35;
-    ctx.shadowBlur  = 10 + 5*Math.sin(t*0.002+isl.phase);
-    ctx.shadowColor = isl.hex;
-    ctx.fillStyle   = isl.hex;
-    ctx.font        = `${8 + 2*a1}px var(--mono, monospace)`;
-    ctx.textAlign   = 'center';
-    ctx.fillText(isl.name.toUpperCase(), cx, cy + isl.baseR + 15);
-    ctx.restore();
-  });
-}
-
-/* ── Cache band membrane ─────────────────────────────────────────────── */
-function drawMembrane(t) {
-  const steps = Math.ceil(W / 3);
-  const dx    = W / steps;
-
-  // fill band interior
-  ctx.save();
-  ctx.beginPath();
-  for (let i = 0; i <= steps; i++) {
-    const x = i * dx;
-    i === 0 ? ctx.moveTo(x, wTop(x,t)) : ctx.lineTo(x, wTop(x,t));
-  }
-  for (let i = steps; i >= 0; i--) {
-    ctx.lineTo(i*dx, wBot(i*dx, t));
-  }
-  ctx.closePath();
-  const fill = ctx.createLinearGradient(0, bandTop, 0, bandBot);
-  fill.addColorStop(0,   'rgba(106,255,213,0.048)');
-  fill.addColorStop(0.5, 'rgba(40,120,200,0.06)');
-  fill.addColorStop(1,   'rgba(106,255,213,0.030)');
-  ctx.fillStyle = fill; ctx.fill();
-  ctx.restore();
-
-  // wave lines
-  for (const [fn, col, alpha] of [
-    [wTop, 'rgba(106,255,213,0.7)', 0.85],
-    [wBot, 'rgba(80,200,180,0.55)', 0.65],
-  ]) {
-    ctx.save();
-    ctx.beginPath();
-    for (let i = 0; i <= steps; i++) {
-      const x = i * dx;
-      i === 0 ? ctx.moveTo(x, fn(x,t)) : ctx.lineTo(x, fn(x,t));
+  // Particle types: ambient (faint dots flowing l→r), and event (a query — bounce/dive).
+  class Ambient {
+    constructor() { this.reset(); }
+    reset() {
+      this.x = Math.random() * W;
+      this.y = Math.random() * H;
+      this.vx = 0.35 + Math.random() * 0.9;
+      this.r = Math.random() < 0.05 ? 1.6 : 0.8;
+      this.alpha = 0.15 + Math.random() * 0.35;
+      this.hue = 200 + Math.random() * 40; // cool blues
     }
-    ctx.strokeStyle = col;
-    ctx.lineWidth   = 1.3;
-    ctx.globalAlpha = alpha;
-    ctx.shadowBlur  = 10;
-    ctx.shadowColor = col;
-    ctx.stroke();
-    ctx.restore();
+    step() {
+      this.x += this.vx;
+      if (this.x > W + 8) { this.x = -8; this.y = Math.random() * H; }
+    }
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${this.hue}, 70%, 70%, ${this.alpha})`;
+      ctx.fill();
+    }
   }
-}
+  class Event {
+    /**
+     * mode = "hit" → bounce off the cache band, glow green
+     * mode = "miss" → dive below band, journey, return blue
+     */
+    constructor(mode) {
+      this.mode = mode;
+      this.x = -10;
+      this.y = BAND_TOP - 12 - Math.random() * 60; // start slightly above band
+      this.vx = 1.4 + Math.random() * 1.0;
+      this.vy = 0;
+      this.life = 0;
+      this.maxLife = 380 + Math.random() * 80;
+      this.dipped = false;
+      this.returned = false;
+    }
+    step() {
+      this.life++;
+      this.x += this.vx;
 
-/* ── Physics update ─────────────────────────────────────────────────── */
-function updateParticles(t) {
-  const L = particles.length;
-
-  // pairwise repulsion
-  for (let i = 0; i < L-1; i++) {
-    const pi = particles[i];
-    if (!pi.alive || pi.fusing) continue;
-    for (let j = i+1; j < L; j++) {
-      const pj = particles[j];
-      if (!pj.alive || pj.fusing) continue;
-      const dx = pi.x-pj.x, dy = pi.y-pj.y;
-      const d2 = dx*dx + dy*dy;
-      if (d2 < REP_R*REP_R && d2 > 0.5) {
-        const f = REP_F / (d2 * (pi.mass+pj.mass));
-        pi.vx += f*dx/pi.mass;  pi.vy += f*dy/pi.mass;
-        pj.vx -= f*dx/pj.mass;  pj.vy -= f*dy/pj.mass;
+      if (this.mode === "hit") {
+        // simple drift toward band, brief bounce, exit right.
+        const target = (BAND_TOP + BAND_BOT) / 2;
+        this.y += (target - this.y) * 0.04;
+        if (this.life === 60) {
+          // bounce away from band — kick upward
+          this.vy = -2.2;
+        }
+        this.y += this.vy;
+        this.vy *= 0.94;
+      } else {
+        // miss path: enter, dive through band, descend, then climb out blue.
+        if (!this.dipped && this.x > W * 0.40) {
+          this.vy = 2.2;
+          this.dipped = true;
+        }
+        if (this.dipped && this.y > H - 20) {
+          this.vy = -1.7;
+          this.returned = true;
+        }
+        this.y += this.vy;
+        this.vy *= 0.985;
       }
     }
+    draw() {
+      const fade = Math.max(0, 1 - this.life / this.maxLife);
+      ctx.save();
+      if (this.mode === "hit") {
+        ctx.shadowBlur = 14; ctx.shadowColor = `rgba(92,255,177,${0.85 * fade})`;
+        ctx.fillStyle = `rgba(180,255,222,${0.95 * fade})`;
+      } else {
+        const c = this.returned ? "108,182,255" : "255,210,140";
+        ctx.shadowBlur = 12; ctx.shadowColor = `rgba(${c},${0.7 * fade})`;
+        ctx.fillStyle = `rgba(${c},${0.95 * fade})`;
+      }
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+      // trailing line
+      ctx.strokeStyle = ctx.fillStyle;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(this.x - 14, this.y);
+      ctx.lineTo(this.x, this.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+    dead() { return this.x > W + 30 || this.life > this.maxLife; }
   }
 
-  for (let i = 0; i < L; i++) {
-    const p = particles[i];
-    if (!p.alive || p.fusing) continue;
+  resize();
+  const ambients = Array.from({ length: 240 }, () => new Ambient());
+  const events = [];
 
-    // turbulence field — spec exact
-    p.vx += Math.sin(p.y * 0.01 + t * 0.002) * 0.3;
-    p.vy += Math.cos(p.x * 0.01 + t * 0.002) * 0.3;
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    // soft river vignette
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, "rgba(108,182,255,0.04)");
+    grad.addColorStop(0.5, "rgba(92,255,177,0.05)");
+    grad.addColorStop(1, "rgba(108,182,255,0.04)");
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
 
-    // cache band wave bounce — spec: reverse vy at band boundaries
-    const tw = wTop(p.x, t), bw = wBot(p.x, t);
-    if (p.y <= tw && p.vy < 0) { p.vy =  Math.abs(p.vy) * 0.72; p.y = tw + 1.5; }
-    if (p.y >= bw && p.vy > 0) { p.vy = -Math.abs(p.vy) * 0.72; p.y = bw - 1.5; }
+    for (const a of ambients) { a.step(); a.draw(); }
+    for (let i = events.length - 1; i >= 0; i--) {
+      const e = events[i];
+      e.step(); e.draw();
+      if (e.dead()) events.splice(i, 1);
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
 
-    // damping + speed cap
-    p.vx *= DAMP; p.vy *= DAMP;
-    const spd = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
-    if (spd > MAX_SPD) { const s = MAX_SPD/spd; p.vx *= s; p.vy *= s; }
+  function emit(mode, count = 1) {
+    for (let i = 0; i < count; i++) events.push(new Event(mode));
+  }
 
-    p.x += p.vx; p.y += p.vy; p.age++;
-    if (p.injected && p.age > AGE_MAX*0.55) p.injected = false;
+  // ── Stats stream → widgets ──────────────────────────────────────────
+  function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 
-    // recycle off right edge — back to left, fresh state
-    if (p.x > W + 12) {
-      const miss = rnd() > HIT_PROB;
-      p.x   = -10;
-      p.y   = bandTop + 12 + rnd() * (bandBot - bandTop - 24);
-      p.vx  = 1.3 + rnd() * 1.5;
-      p.vy  = (rnd()-0.5) * 0.7;
-      p.age = 0; p.miss = miss; p.injected = false;
-      if (miss) { simMisses++; ekgAccM++; }
-      else      { simHits++;   ekgAccH++; }
+  function renderStats(s) {
+    const total = (s.total_hits || 0) + (s.total_misses || 0);
+    const hitRate = total > 0 ? (s.total_hits / total) : 0;
+    const pct = Math.round(hitRate * 100);
+
+    document.getElementById("gaugeWater").style.height = pct + "%";
+    setText("gaugeText", pct);
+    setText("metaSize", s.size ?? "—");
+    setText("metaQueries", total);
+    setText("rowSize", s.size + " / " + s.max_size);
+    setText("rowThresh", (s.threshold ?? "—"));
+    setText("rowHits", s.total_hits ?? 0);
+    setText("rowMiss", s.total_misses ?? 0);
+    setText("rowAvoid", s.calls_avoided ?? 0);
+    setText("rowTime", ((s.time_saved_seconds ?? 0).toFixed(2)) + "s");
+    setText("tileDollars", "$" + ((s.dollars_saved ?? 0).toFixed(3)));
+    setText("tileBackend", s.backend ? s.backend.replace("konjoai.cache.", "") : "memory");
+  }
+
+  function renderLatency() {
+    const cv = document.getElementById("ekg");
+    const dctx = cv.getContext("2d");
+    const w = cv.width, h = cv.height;
+    dctx.clearRect(0, 0, w, h);
+    const samples = state.latencies.slice(-64);
+    if (!samples.length) return;
+    const max = Math.max(...samples, 50);
+
+    // baseline
+    dctx.strokeStyle = "rgba(255,255,255,0.06)";
+    dctx.beginPath();
+    dctx.moveTo(0, h * 0.7); dctx.lineTo(w, h * 0.7);
+    dctx.stroke();
+
+    // EKG path: fast latency = sharp narrow peak; slow = wider wave
+    dctx.lineWidth = 1.4;
+    dctx.strokeStyle = "rgba(92,255,177,0.9)";
+    dctx.shadowBlur = 6;
+    dctx.shadowColor = "rgba(92,255,177,0.7)";
+    dctx.beginPath();
+    const stride = w / Math.max(samples.length, 1);
+    for (let i = 0; i < samples.length; i++) {
+      const cx = i * stride;
+      const ms = samples[i];
+      const norm = Math.min(1, ms / max);
+      const peakHeight = 6 + norm * (h * 0.55);
+      // ekg shape: baseline → spike up → dip → baseline
+      const baseY = h * 0.7;
+      const pSegX = stride * 0.35;
+      const peakX = cx + pSegX * 0.4;
+      const dipX  = cx + pSegX * 0.7;
+      dctx.lineTo(cx, baseY);
+      dctx.lineTo(peakX, baseY - peakHeight);
+      dctx.lineTo(dipX, baseY + peakHeight * 0.18);
+      dctx.lineTo(cx + pSegX, baseY);
+    }
+    dctx.stroke();
+  }
+
+  function renderTags() {
+    const cloud = document.getElementById("tagcloud");
+    const now = Date.now();
+    const list = Array.from(state.tags.entries())
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 18);
+    cloud.innerHTML = "";
+    for (const [q, info] of list) {
+      const recencyMs = now - info.last;
+      let tone = "cold";
+      if (recencyMs < 8000) tone = "fresh";
+      else if (recencyMs < 60000) tone = "warm";
+      const span = document.createElement("span");
+      span.className = "tag " + tone;
+      const size = 11 + Math.min(8, info.count);
+      span.style.fontSize = size + "px";
+      span.textContent = q.length > 32 ? q.slice(0, 30) + "…" : q;
+      span.title = `${q} · ${info.count}× · ${Math.round(recencyMs/1000)}s ago`;
+      cloud.appendChild(span);
+    }
+    if (!list.length) {
+      cloud.innerHTML = `<span class="tag cold">no queries yet — type one →</span>`;
     }
   }
-}
 
-/* ── Draw particles ─────────────────────────────────────────────────── */
-function drawParticles() {
-  particles.forEach(p => {
-    if (!p.alive) return;
-    const c  = pColor(p);
-    const sz = p.injected ? 1.5 : 1.0;
-    ctx.save();
-    ctx.shadowBlur  = p.injected ? 18 : p.miss ? 8 : 11;
-    ctx.shadowColor = c.shadow;
-    ctx.fillStyle   = c.fill;
-    ctx.globalAlpha = p.injected ? 0.98 : 0.82;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r * sz, 0, TAU);
-    ctx.fill();
-    ctx.restore();
-  });
-}
-
-/* ── Singleflight ──────────────────────────────────────────────────── */
-let sfActive = false, sfStart = 0, sfLeader = null, sfFollowers = [];
-
-function triggerSF() {
-  if (sfActive) return;
-  const free = particles.filter(p => !p.fusing && !p.miss && p.alive);
-  if (free.length < SF_N+2) return;
-  const pool = free.slice().sort(() => rnd()-0.5);
-  sfLeader    = pool[0];
-  sfFollowers = pool.slice(1, SF_N+1);
-  sfFollowers.forEach(p => { p.fusing = true; p._sfX0 = p.x; p._sfY0 = p.y; });
-  sfActive = true; sfStart = performance.now();
-  document.getElementById('inflightVal').textContent = SF_N;
-  const badge = document.getElementById('sfBadge');
-  badge.textContent = `⚡ singleflight — ${SF_N} queries collapsed to 1`;
-  badge.style.opacity = '1';
-  setTimeout(() => { badge.style.opacity = '0'; }, 2400);
-}
-
-function updateSF(now) {
-  if (!sfActive) return;
-  const prog = Math.min(1, (now - sfStart) / SF_DUR);
-  const ease = springEase(prog);
-  sfFollowers.forEach(p => {
-    p.x = lerp(p._sfX0, sfLeader.x, ease);
-    p.y = lerp(p._sfY0, sfLeader.y, ease);
-  });
-  // Draw converging trails
-  ctx.save();
-  sfFollowers.forEach(p => {
-    const a = (1-prog) * 0.65;
-    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(sfLeader.x, sfLeader.y);
-    ctx.strokeStyle = `rgba(255,255,255,${a})`;
-    ctx.lineWidth   = 1.4*(1-prog*0.6);
-    ctx.shadowBlur  = 12; ctx.shadowColor = '#ffffff';
-    ctx.stroke();
-  });
-  ctx.restore();
-  if (prog >= 1) {
-    addFlash(sfLeader.x, sfLeader.y);
-    sfFollowers.forEach(p => {
-      p.fusing = false; p.age = 0; p.injected = false; p.miss = false;
-      p.x = sfLeader.x + (rnd()-0.5)*18; p.y = sfLeader.y + (rnd()-0.5)*10;
-      p.vx = 2.2 + rnd()*1.4; p.vy = (rnd()-0.5)*0.5;
-    });
-    sfActive = false;
-    simHits += SF_N; ekgAccH += SF_N;
-    document.getElementById('inflightVal').textContent = '0';
+  function renderVenn() {
+    const total = state.queries;
+    const ratio = total > 0 ? (state.collapses / total) : 0;
+    const overlap = Math.min(140, 4 + ratio * 220);
+    document.getElementById("vennOverlap").style.width = overlap + "px";
+    document.getElementById("venn").classList.toggle("collapsed", ratio > 0.2);
+    setText("metaCollapses", state.collapses);
   }
-}
 
-/* ── Flash effects ─────────────────────────────────────────────────── */
-let flashes = [];
-function addFlash(x, y) { flashes.push({x, y, age:0}); }
-
-function drawFlashes() {
-  flashes = flashes.filter(f => f.age < FLASH_LIFE);
-  flashes.forEach(f => {
-    const t  = f.age / FLASH_LIFE;
-    const eo = easeOut(t);
-    const a  = Math.pow(1-t, 2);
-    ctx.save();
-    // expanding ring
-    ctx.shadowBlur  = 40; ctx.shadowColor = 'rgba(255,255,255,0.9)';
-    ctx.strokeStyle = `rgba(255,255,255,${a})`;
-    ctx.lineWidth   = 2.5*(1-t);
-    ctx.beginPath(); ctx.arc(f.x, f.y, eo*62, 0, TAU); ctx.stroke();
-    // inner dot
-    ctx.shadowBlur = 22;
-    ctx.fillStyle  = `rgba(255,255,255,${a*1.3})`;
-    ctx.beginPath(); ctx.arc(f.x, f.y, 6*(1-t)+1, 0, TAU); ctx.fill();
-    ctx.restore();
-    f.age++;
-  });
-}
-
-/* ── EKG sparkline ─────────────────────────────────────────────────── */
-let ekgData = [];
-let ekgTick = 0;
-
-// Pre-seed with realistic variation so EKG is immediately visible
-function seedEkg() {
-  ekgData = [];
-  for (let i = 0; i < EKG_LEN; i++) {
-    const base = HIT_PROB + Math.sin(i * 0.09) * 0.06;
-    ekgData.push(clamp(base + (rnd()-0.5)*0.14, 0.05, 0.98));
+  // ── Corpus islands ─────────────────────────────────────────────────
+  async function loadCorpus() {
+    try {
+      const r = await fetch(API + "/api/corpus/load");
+      const m = await r.json();
+      if (!m.loaded) return;
+      state.domainCounts = m.domains || state.domainCounts;
+      const islands = document.querySelectorAll(".island");
+      islands.forEach(node => {
+        const dom = node.dataset.domain;
+        const docs = (m.documents || []).filter(d => d.domain === dom);
+        node.querySelector("[data-count]").textContent = docs.length + " docs";
+        const ul = node.querySelector("[data-list]");
+        ul.innerHTML = "";
+        for (const d of docs) {
+          const li = document.createElement("li");
+          li.textContent = d.title;
+          li.title = d.preview;
+          ul.appendChild(li);
+        }
+      });
+    } catch (e) {
+      console.warn("corpus load failed", e);
+    }
   }
-}
 
-function sampleEkg() {
-  ekgTick++;
-  if (ekgTick < EKG_TICK) return;
-  ekgTick = 0;
-  const total = ekgAccH + ekgAccM;
-  const rate  = total > 0 ? ekgAccH/total : HIT_PROB + (rnd()-0.5)*0.12;
-  ekgAccH = 0; ekgAccM = 0;
-  ekgData.push(clamp(rate, 0, 1));
-  if (ekgData.length > EKG_LEN) ekgData.shift();
-}
+  // ── Probe ────────────────────────────────────────────────────────────
+  async function probe(q) {
+    if (!q) return;
+    const out = document.getElementById("probeOut");
+    out.textContent = "…";
+    try {
+      const r = await fetch(API + "/api/cache/ask", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question: q }),
+      });
+      const j = await r.json();
+      // Recordings
+      state.queries++;
+      const tag = state.tags.get(q) || { count: 0, last: 0 };
+      tag.count++; tag.last = Date.now();
+      state.tags.set(q, tag);
+      state.latencies.push(j.latency_ms || 0);
 
-function drawEkg(frame) {
-  ectx.clearRect(0, 0, BW, BH);
-  if (ekgData.length < 2) return;
-  const sx = BW / (EKG_LEN-1);
-  const latest = ekgData[ekgData.length-1];
-  const col  = latest > 0.8 ? '#00ff88' : latest > 0.5 ? '#ffaa00' : '#ff4444';
-  const colR = latest > 0.8 ? '0,255,136' : latest > 0.5 ? '255,170,0' : '255,68,68';
+      if (j.hit) {
+        state.hits++;
+        emit("hit");
+        // Singleflight is illustrated as: rapid repeated identical asks → coalesce.
+        if (tag.count > 1 && Date.now() - tag.last < 1500) state.collapses++;
+        out.innerHTML = `<b style="color:var(--hit)">HIT</b> · score ${j.score_pct}% · ${j.latency_ms.toFixed(2)}ms<br><span style="opacity:0.7">${j.cached_answer}</span>`;
+      } else {
+        state.misses++;
+        emit("miss");
+        out.innerHTML = `<b style="color:var(--miss)">MISS</b> · stored · ${j.latency_ms.toFixed(2)}ms<br><span style="opacity:0.7">${j.cached_answer}</span>`;
+      }
+      renderTags(); renderVenn(); renderLatency();
+      // Refresh server-side stats too.
+      pullStats();
+    } catch (e) {
+      out.textContent = "probe failed: " + e.message;
+    }
+  }
 
-  // area fill
-  ectx.save();
-  ectx.beginPath();
-  ekgData.forEach((v,i) => {
-    const x = i*sx, y = BH - v*(BH-5) - 2;
-    i===0 ? ectx.moveTo(x,y) : ectx.lineTo(x,y);
+  async function pullStats() {
+    try {
+      const r = await fetch(API + "/api/cache/stats");
+      const s = await r.json();
+      renderStats(s);
+      // sample tile latencies based on running averages (we keep our own client samples, but show server-side aggregate too)
+      const avg = state.latencies.length ? (state.latencies.reduce((a,b)=>a+b,0) / state.latencies.length) : 0;
+      const sorted = [...state.latencies].sort((a,b)=>a-b);
+      const p95 = sorted.length ? sorted[Math.min(sorted.length-1, Math.floor(sorted.length * 0.95))] : 0;
+      setText("tileAvg", avg.toFixed(1) + "<small>ms</small>");
+      setText("tileP95", p95.toFixed(1) + "<small>ms</small>");
+      // re-render parts that depend on server numbers
+    } catch (e) { /* server may not be up yet */ }
+  }
+
+  // ── Bindings ────────────────────────────────────────────────────────
+  document.getElementById("probeBtn").addEventListener("click", () => {
+    const v = document.getElementById("probeInput").value.trim();
+    if (v) probe(v);
   });
-  ectx.lineTo((ekgData.length-1)*sx, BH); ectx.lineTo(0, BH); ectx.closePath();
-  const ag = ectx.createLinearGradient(0,0,0,BH);
-  ag.addColorStop(0, `rgba(${colR},0.18)`); ag.addColorStop(1, `rgba(${colR},0)`);
-  ectx.fillStyle = ag; ectx.fill(); ectx.restore();
-
-  // line
-  ectx.save();
-  ectx.beginPath();
-  ekgData.forEach((v,i) => {
-    const x = i*sx, y = BH - v*(BH-5) - 2;
-    i===0 ? ectx.moveTo(x,y) : ectx.lineTo(x,y);
+  document.getElementById("probeInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      const v = e.currentTarget.value.trim();
+      if (v) probe(v);
+    }
   });
-  ectx.strokeStyle = col; ectx.lineWidth = 1.6;
-  ectx.shadowBlur = 7; ectx.shadowColor = `rgba(${colR},0.7)`;
-  ectx.stroke(); ectx.restore();
 
-  // glowing head dot — spec: shadowBlur:20, shadowColor shifts green→amber→red by hit rate
-  const hx = (ekgData.length-1)*sx;
-  const hy = BH - latest*(BH-5) - 2;
-  ectx.save();
-  ectx.shadowBlur  = 20; ectx.shadowColor = `rgba(${colR},0.9)`;
-  ectx.fillStyle   = col;
-  ectx.beginPath(); ectx.arc(hx, hy, 3.5, 0, TAU); ectx.fill();
-  // blink ring
-  const blink = 0.35 + 0.35*Math.sin(frame * 0.13);
-  ectx.globalAlpha = blink;
-  ectx.beginPath(); ectx.arc(hx, hy, 6.5, 0, TAU);
-  ectx.strokeStyle = col; ectx.lineWidth = 1;
-  ectx.stroke();
-  ectx.restore();
-}
+  // ── Boot ────────────────────────────────────────────────────────────
+  (async function boot() {
+    // Seed the cache so first paint isn't empty.
+    try { await fetch(API + "/api/cache/seed", { method: "POST" }); } catch {}
+    await loadCorpus();
+    pullStats();
+    setInterval(pullStats, 1500);
 
-/* ── Stats DOM update ──────────────────────────────────────────────── */
-function updateStats(frame) {
-  if (frame % 10 !== 0) return;
-  const total = simHits + simMisses;
-  const rate  = total > 0 ? simHits/total : HIT_PROB;
-  const pct   = Math.round(rate*100);
-  const rEl   = document.getElementById('hitRateVal');
-  rEl.textContent = pct + '%';
-  rEl.style.color = rate > 0.8 ? '#6affd5' : rate > 0.5 ? '#ffaa00' : '#ff6464';
-  document.getElementById('hitsVal').textContent   = simHits;
-  document.getElementById('missesVal').textContent = simMisses;
-  document.getElementById('savedVal').textContent  = (simHits * LLM_MS / 1000).toFixed(1) + 's';
-}
-
-/* ── Query injection ────────────────────────────────────────────────── */
-const qInput = document.getElementById('queryInput');
-let lastInject = 0;
-qInput.addEventListener('keyup', () => {
-  const now = performance.now();
-  if (now - lastInject < 38) return;
-  lastInject = now;
-  const rect = qInput.closest('#queryWrap').getBoundingClientRect();
-  particles.push(spawn({
-    x: rect.left + 8, y: rect.top + rect.height/2,
-    vx: 3.2 + rnd()*2, vy: (rnd()-0.5)*1.5,
-    r: 2.6, age: 0, miss: false, injected: true, count: false,
-  }));
-  if (particles.length > N + 40) particles.splice(N, particles.length - N);
-});
-
-/* ── Main loop ─────────────────────────────────────────────────────── */
-let frame = 0;
-let lastSF = 0;
-let t0 = 0;   // captured on first frame to normalise turbulence time
-
-function loop(now) {
-  if (frame === 0) t0 = now;
-  frame++;
-
-  // singleflight trigger
-  if (now - lastSF > SF_EVERY && !sfActive) { lastSF = now; triggerSF(); }
-
-  // deep space background
-  ctx.clearRect(0,0,W,H);
-  const bg = ctx.createRadialGradient(W*.5,H*.38,0, W*.5,H*.4, Math.max(W,H)*0.8);
-  bg.addColorStop(0, '#041018'); bg.addColorStop(0.6,'#021010'); bg.addColorStop(1,'#030812');
-  ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
-
-  // faint grid
-  ctx.save();
-  ctx.strokeStyle = 'rgba(0,255,136,0.034)'; ctx.lineWidth = 0.5;
-  for (let x=0; x<W; x+=52) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-  for (let y=0; y<H; y+=52) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-  ctx.restore();
-
-  const tSim = now - t0;   // ms since animation start — turbulence stays phase-agnostic
-  drawIslands(tSim);
-  drawMembrane(tSim);
-  updateParticles(tSim);
-  drawParticles();
-  updateSF(now);
-  drawFlashes();
-  sampleEkg();
-  drawEkg(frame);
-  updateStats(frame);
-
-  requestAnimationFrame(loop);
-}
-
-/* ── Boot — defer until layout is ready ────────────────────────────── */
-window.addEventListener('resize', resize);
-window.addEventListener('load', () => {
-  resize();
-  seedEkg();
-  initParticles();
-  // prime stats counters so the display shows real numbers immediately
-  simHits   = particles.filter(p => !p.miss).length;
-  simMisses = particles.filter(p =>  p.miss).length;
-  requestAnimationFrame(loop);
-});
+    // Steady ambient activity: emit a faint hit/miss every 1.4s based on current rate
+    setInterval(() => {
+      const total = state.hits + state.misses;
+      const rate = total > 0 ? state.hits / total : 0.5;
+      if (Math.random() < 0.6) emit(Math.random() < rate ? "hit" : "miss");
+    }, 1400);
+  })();
+})();
 </script>
 </body>
 </html>

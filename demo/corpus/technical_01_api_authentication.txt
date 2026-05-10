@@ -1,0 +1,20 @@
+API Authentication — Bearer Tokens and API Keys
+
+The Konjo AI API supports two authentication mechanisms: short-lived JWT
+bearer tokens (recommended) and long-lived API keys (for server-to-server
+integrations where token refresh is impractical).
+
+Bearer tokens are issued by POST /v1/auth/token in exchange for a client_id
+and client_secret. Tokens use HS256 signing and expire after one hour.
+Include the token on every request as: Authorization: Bearer <token>. The
+sub claim carries the tenant_id; the exp claim is enforced server-side
+with a 60-second clock-skew tolerance.
+
+API keys are 64-character random strings prefixed with k_live_ (production)
+or k_test_ (sandbox). Pass them via the X-API-Key header. Keys are SHA-256
+hashed at rest; only the hash is stored, so a leaked key cannot be
+recovered from the database. Rotate keys at least every 90 days.
+
+Brute-force protection: five (5) consecutive failed authentications from
+the same IP within 60 seconds triggers a 5-minute lockout. The lockout
+counter resets on any successful authentication from that IP.

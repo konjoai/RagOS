@@ -1,0 +1,22 @@
+Rate Limiting — Sliding Window Quotas
+
+Konjo AI enforces a per-tenant sliding-window rate limiter on every API
+endpoint. Each request consumes one token from a bucket sized to the
+tenant's plan: 60 requests per minute on the Starter tier, 600 on Pro,
+and custom on Enterprise.
+
+The limiter window is 60 seconds. We track the timestamp of every accepted
+request in a per-(tenant_id, endpoint) deque; on each new request, entries
+older than the window are evicted before the count is compared against
+the quota. This is more accurate than a fixed-window counter, which allows
+2× the quota at the rollover boundary.
+
+When a request would exceed the quota, the API responds with HTTP 429 Too
+Many Requests and a Retry-After header set to the seconds remaining until
+the oldest tracked request rolls out of the window. Clients should
+exponentially back off on 429s, with full jitter, capping retry delay at
+30 seconds.
+
+Burst allowance: tenants may temporarily exceed steady-state quota by 20%
+for up to ten consecutive seconds, after which the strict limit applies.
+This accommodates legitimate traffic spikes without flagging abuse.

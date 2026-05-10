@@ -1,33 +1,29 @@
 {
-  "version": "1.0",
-  "description": "Realistic RAG queries across three tenant personas. Replayed twice by the observatory to demonstrate hit-rate climb + paraphrase coalescing.",
   "tenants": [
-    { "tenant_id": "acme-support",   "persona": "customer-support agent for an e-commerce store" },
-    { "tenant_id": "konjo-devrel",   "persona": "developer evaluating Kyro for a RAG deployment" },
-    { "tenant_id": "lumen-research", "persona": "research analyst asking factual reference questions" }
+    { "tenant_id": "acme",   "label": "Acme Corp (legal)"   },
+    { "tenant_id": "rx",     "label": "RxCare (medical)"     },
+    { "tenant_id": "devops", "label": "DevOps (technical)"   }
   ],
   "queries": [
-    { "tenant_id": "acme-support",   "question": "What is your refund policy?" },
-    { "tenant_id": "acme-support",   "question": "How do I return a damaged item?" },
-    { "tenant_id": "acme-support",   "question": "How fast does shipping arrive?" },
-    { "tenant_id": "acme-support",   "question": "When will my order be delivered?" },
-    { "tenant_id": "acme-support",   "question": "What is the return window for refunds?" },
-    { "tenant_id": "acme-support",   "question": "Do you offer free shipping over $50?" },
-    { "tenant_id": "acme-support",   "question": "What payment methods do you accept?" },
-
-    { "tenant_id": "konjo-devrel",   "question": "How do I install Kyro?" },
-    { "tenant_id": "konjo-devrel",   "question": "What language is Kyro written in?" },
-    { "tenant_id": "konjo-devrel",   "question": "Is Kyro open source?" },
-    { "tenant_id": "konjo-devrel",   "question": "What is your SLA?" },
-    { "tenant_id": "konjo-devrel",   "question": "Does Kyro support Redis as a cache backend?" },
-    { "tenant_id": "konjo-devrel",   "question": "How does the singleflight stampede protection work?" },
-    { "tenant_id": "konjo-devrel",   "question": "What does Kyro actually do?" },
-
-    { "tenant_id": "lumen-research", "question": "What is the capital of France?" },
-    { "tenant_id": "lumen-research", "question": "What is the capital of Germany?" },
-    { "tenant_id": "lumen-research", "question": "What is the capital of the UK?" },
-    { "tenant_id": "lumen-research", "question": "What is the meaning of life?" },
-    { "tenant_id": "lumen-research", "question": "Tell me about the capital of France" },
-    { "tenant_id": "lumen-research", "question": "Which city is the capital of Germany?" }
+    { "tenant_id": "acme",   "question": "What is our GDPR right to deletion policy?" },
+    { "tenant_id": "acme",   "question": "How long do we retain personal data?" },
+    { "tenant_id": "acme",   "question": "What happens when a data processing agreement expires?" },
+    { "tenant_id": "acme",   "question": "Which third parties can access user data?" },
+    { "tenant_id": "acme",   "question": "What are the terms for early contract termination?" },
+    { "tenant_id": "acme",   "question": "How do we handle a CCPA opt-out request?" },
+    { "tenant_id": "acme",   "question": "What is the liability cap under the TOS?" },
+    { "tenant_id": "rx",     "question": "What is the standard warfarin-aspirin interaction protocol?" },
+    { "tenant_id": "rx",     "question": "What is the metformin starting dose for type 2 diabetics?" },
+    { "tenant_id": "rx",     "question": "What is the recommended acetaminophen dose for a 5-year-old?" },
+    { "tenant_id": "rx",     "question": "How do SSRIs interact with NSAIDs for bleeding risk?" },
+    { "tenant_id": "rx",     "question": "What is the renal dose adjustment for metformin?" },
+    { "tenant_id": "rx",     "question": "At what INR level is warfarin dose typically reduced?" },
+    { "tenant_id": "rx",     "question": "What weight threshold triggers adult acetaminophen dosing in children?" },
+    { "tenant_id": "devops", "question": "How do I authenticate requests to the Kyro API?" },
+    { "tenant_id": "devops", "question": "What are the rate limits for the API endpoints?" },
+    { "tenant_id": "devops", "question": "How do I deploy Kyro on Kubernetes with Helm?" },
+    { "tenant_id": "devops", "question": "What is the recommended Postgres PITR backup strategy?" },
+    { "tenant_id": "devops", "question": "How do I set up mTLS between Kyro and Qdrant?" },
+    { "tenant_id": "devops", "question": "What resource limits should I set for the Kyro deployment?" }
   ]
 }

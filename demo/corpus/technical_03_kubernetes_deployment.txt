@@ -1,0 +1,25 @@
+Kubernetes Deployment — Helm Chart and Production Topology
+
+The kyro Helm chart provisions a stateless Deployment behind a ClusterIP
+Service, with a HorizontalPodAutoscaler scaling between 2 and 10 replicas
+based on CPU (target 70%) and memory (target 75%). Deploy with:
+
+    helm upgrade --install kyro helm/kyro/ \
+      --namespace kyro --create-namespace \
+      --set secrets.openaiApiKey=<key> \
+      --set config.cacheBackend=redis \
+      --set config.cacheRedisUrl=redis://redis:6379
+
+Pods run as a non-root user (UID 10001), with a read-only root filesystem
+and the SecurityContext capabilities dropped. Liveness probes hit
+/health every 30 seconds; readiness probes hit /ready and gate traffic
+until the encoder and vector store have loaded (typically 15-25 seconds
+on a cold start).
+
+For multi-replica deployments, set cache_backend to "redis" so semantic
+cache state shards across pods. The in-memory backend is single-pod only;
+running multiple replicas with the in-memory backend produces inconsistent
+hit rates and wastes embedding compute.
+
+Resource requests: 500m CPU and 1Gi memory per pod. Limits: 2 CPU, 4Gi.
+GPU acceleration is not required for inference at the default model size.

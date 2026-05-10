@@ -1,0 +1,24 @@
+PostgreSQL Backup and Point-in-Time Recovery
+
+Production PostgreSQL clusters use continuous archiving with WAL shipping
+to object storage (S3) for point-in-time recovery (PITR). Base backups are
+taken nightly with pg_basebackup and retained for 30 days; WAL segments
+are archived every 60 seconds, giving a recovery point objective (RPO) of
+under one minute.
+
+To restore to a specific moment:
+  1. Provision a new cluster from the most recent base backup taken before
+     the target time.
+  2. Configure recovery.conf with restore_command pointing at the WAL
+     archive and recovery_target_time set to the desired timestamp.
+  3. Start PostgreSQL; it will replay WAL until the target, then promote.
+  4. Verify by querying a known checkpoint table; rotate the cluster's
+     replication slot identifier.
+
+Verification: a recovery drill is performed monthly against a non-prod
+copy. The drill measures recovery time objective (RTO) — currently 22
+minutes for a 500 GB cluster — and validates checksums against a known
+golden snapshot. Failed drills page the on-call DBA.
+
+Logical backups (pg_dump) are NOT used for disaster recovery; they are
+reserved for schema migrations and table-level extraction.

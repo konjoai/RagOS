@@ -1,0 +1,19 @@
+Anticoagulant Drug Interactions — Warfarin and NSAIDs
+
+Concurrent administration of warfarin (Coumadin) and non-steroidal
+anti-inflammatory drugs (NSAIDs) such as ibuprofen, naproxen, or aspirin
+significantly increases the risk of major bleeding, particularly upper
+gastrointestinal hemorrhage. The mechanism is dual: NSAIDs inhibit platelet
+aggregation by blocking COX-1, and they also displace warfarin from plasma
+albumin binding sites, increasing the free fraction of the anticoagulant.
+
+Clinical recommendation: avoid the combination when possible. If concurrent
+use is medically necessary, prescribe the lowest effective NSAID dose for
+the shortest duration, monitor INR weekly for the first month, and consider
+prophylactic proton pump inhibitor (PPI) therapy. Patients should be
+counseled to report any signs of bleeding immediately: black or tarry
+stools, hematuria, prolonged bleeding from cuts, or unexplained bruising.
+
+Acetaminophen (paracetamol) up to 2 grams per day is generally preferred
+for analgesia in patients on chronic warfarin therapy. Doses above 3 grams
+per day for more than one week may potentiate warfarin and elevate INR.
