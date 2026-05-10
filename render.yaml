@@ -1,0 +1,25 @@
+# Render blueprint for the kyro retrieval API.
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: kyro-api
+    runtime: docker
+    plan: starter
+    autoDeploy: true
+    region: oregon
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: CACHE_ENABLED
+        value: "true"
+      - key: ENABLE_TELEMETRY
+        value: "true"
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
