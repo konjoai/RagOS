@@ -3,7 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
+from datetime import UTC
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -11,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from konjoai.agent.react import RAGAgent
 from konjoai.api.schemas import SourceDoc
+from konjoai.audit.models import AGENT_QUERY, AuditEvent, hash_text
 from konjoai.config import get_settings
 from konjoai.telemetry import PipelineTelemetry, timed
 
@@ -57,7 +59,7 @@ async def agent_query(req: AgentQueryRequest) -> AgentQueryResponse:
                 ),
                 timeout=timeout_seconds,
             )
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         raise HTTPException(
             status_code=504,
             detail=f"agent request timed out after {timeout_seconds:.2f}s",
@@ -72,7 +74,7 @@ async def agent_query(req: AgentQueryRequest) -> AgentQueryResponse:
         for s in result.sources
     ]
 
-    return AgentQueryResponse(
+    response = AgentQueryResponse(
         answer=result.answer,
         sources=sources,
         model=result.model,
@@ -88,6 +90,24 @@ async def agent_query(req: AgentQueryRequest) -> AgentQueryResponse:
         ],
         telemetry=tel.as_dict() if settings.enable_telemetry else None,
     )
+
+    # ── Audit log (Sprint 24; K3: no-op when audit_enabled=False) ────────────
+    if settings.audit_enabled:
+        from datetime import datetime
+
+        from konjoai.audit import get_audit_logger
+        _latency = sum(t.elapsed_ms for t in tel.steps) if tel.steps else 0.0
+        get_audit_logger().log(AuditEvent(
+            event_type=AGENT_QUERY,
+            timestamp=datetime.now(UTC).isoformat(),
+            endpoint="/agent/query",
+            status_code=200,
+            latency_ms=_latency,
+            question_hash=hash_text(req.question),
+            result_count=len(sources),
+        ))
+
+    return response
 
 
 @router.post("/query/stream")
@@ -163,13 +183,13 @@ async def agent_query_stream(req: AgentQueryRequest) -> StreamingResponse:
                         }
                     else:
                         frame = event
-                    yield f"data: {json.dumps(frame, ensure_ascii=False)}\n\n".encode("utf-8")
+                    yield f"data: {json.dumps(frame, ensure_ascii=False)}\n\n".encode()
 
             telemetry_frame = {
                 "type": "telemetry",
                 "telemetry": tel.as_dict() if settings.enable_telemetry else None,
             }
-            yield f"data: {json.dumps(telemetry_frame, ensure_ascii=False)}\n\n".encode("utf-8")
+            yield f"data: {json.dumps(telemetry_frame, ensure_ascii=False)}\n\n".encode()
             yield b"data: [DONE]\n\n"
         except asyncio.CancelledError:  # pragma: no cover — client disconnect
             raise
@@ -181,7 +201,7 @@ async def agent_query_stream(req: AgentQueryRequest) -> StreamingResponse:
 
     try:
         return await asyncio.wait_for(_execute_with_timeout(), timeout=timeout_seconds)
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         logger.warning("agent/query/stream timed out after %.2fs", timeout_seconds)
         raise HTTPException(
             status_code=504,

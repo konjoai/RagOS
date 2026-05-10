@@ -19,30 +19,31 @@ import inspect
 import logging
 import math
 import re
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from enum import Enum, IntEnum
-from typing import Any, Callable, Sequence
+from enum import IntEnum, StrEnum
+from typing import Any
 
 from konjoai.retrieve.router import QueryIntent, classify_intent
 
 logger = logging.getLogger(__name__)
 
 
-class RetrieveDecision(str, Enum):
+class RetrieveDecision(StrEnum):
     """[Retrieve] — should this query trigger retrieval?"""
 
     YES = "yes"
     NO = "no"
 
 
-class RelevanceToken(str, Enum):
+class RelevanceToken(StrEnum):
     """[IsRel] — document relevance token."""
 
     RELEVANT = "relevant"
     IRRELEVANT = "irrelevant"
 
 
-class SupportToken(str, Enum):
+class SupportToken(StrEnum):
     """[IsSup] — support token."""
 
     FULLY_SUPPORTED = "fully_supported"

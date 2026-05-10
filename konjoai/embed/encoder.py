@@ -11,7 +11,7 @@ try:
 except ImportError:
     SentenceTransformer = None  # type: ignore[assignment,misc]
 
-_encoder: "SentenceEncoder | None" = None
+_encoder: SentenceEncoder | None = None
 
 _DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 

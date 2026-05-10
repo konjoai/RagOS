@@ -113,7 +113,7 @@ class EntityGraph:
             )
         self.similarity_threshold = similarity_threshold
 
-    def build(self, contents: list[str]) -> "nx.Graph":
+    def build(self, contents: list[str]) -> nx.Graph:
         """Build and return a NetworkX Graph from a list of chunk strings.
 
         Raises
@@ -145,7 +145,7 @@ class EntityGraph:
 
         return graph
 
-    def detect_communities(self, graph: "nx.Graph") -> list[frozenset[int]]:
+    def detect_communities(self, graph: nx.Graph) -> list[frozenset[int]]:
         """Return one frozenset of node ids per detected community.
 
         Uses ``greedy_modularity_communities`` (Louvain-style greedy algorithm

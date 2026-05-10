@@ -3,6 +3,149 @@
 All notable changes to KonjoOS are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [unreleased] — K3: Observatory live
+
+### Added
+- `demo/observatory.html` — self-contained live dashboard. Dark theme, purple
+  accent. Auto-refreshes every 3s by polling `GET /metrics`. Renders:
+  - SVG ring gauge for cache hit rate (0–100%).
+  - SVG sparkline of the last 60 query latencies.
+  - Singleflight coalescing ratio (collapsed / total) with a progress bar.
+  - Top-10 most-queried terms leaderboard (stop-words stripped, stems counted).
+  - "replay corpus" button that fires the 20-query × 3-tenant seed corpus
+    twice through `POST /api/cache/ask` so visitors see the hit-rate climb live.
+  - "reset" button wired to `POST /api/cache/reset`.
+- `demo/sample_queries.json` — 20 realistic RAG queries across three tenants
+  (`acme-support`, `konjo-devrel`, `lumen-research`). Served at
+  `GET /api/sample_queries` for the dashboard's replay button.
+- `demo/server.py` — `GET /metrics` endpoint backed by real counters from
+  `konjoai.cache.SemanticCache.stats()` plus a synchronous singleflight gate
+  that mirrors `AsyncSemanticCache.get_or_compute` semantics (concurrent
+  callers for the same normalised question collapse onto one LLM synth).
+  Metric shape:
+  - `cache_hit_rate` (float 0–1) — pulled from `SemanticCache.stats()`.
+  - `avg_latency_ms` (float) — mean of `latency_history`.
+  - `singleflight_ratio` (float 0–1) — `singleflight_collapsed / total_queries`.
+  - `total_queries` (int) — every `ask()` call (hits + misses + collapses).
+  - `top_terms` (list of `{term, count}`) — Counter over content words after
+    stop-word and length filtering, capped at 10.
+  - `latency_history` (list of float, length ≤ 60) — ring buffer of recent ms.
+  - Plus convenience fields: `total_hits`, `total_misses`, `cache_size`,
+    `singleflight_collapsed`, `calls_avoided`, `time_saved_ms`, `dollars_saved`,
+    `history_capacity`, `threshold`, `cache_max_size`.
+- `tests/unit/test_demo_metrics.py` — 7 new tests pinning the dashboard
+  contract: empty-state shape, field types, hit-rate equals `SemanticCache`
+  ground truth, latency history bounded + chronological, leaderboard cap +
+  stop-word filter, singleflight ratio under concurrent load, sample-corpus
+  shape (20 queries × 3 tenants).
+
+### Changed
+- `demo/server.py` — `ask()` now records latency into a 60-slot ring buffer,
+  increments stop-word-stripped term counters, and routes misses through the
+  new singleflight gate. `reset()` clears the new counters and the inflight
+  registry. The handler exposes new GET routes: `/observatory`, `/metrics`,
+  `/api/sample_queries`. Static-serving was DRYed into `_serve_static()`.
+
+### Konjo gates
+- **K1**: `ask()` waiter path tolerates a leader compute failure — `event.set()`
+  fires from `finally`, so waiters never block forever and the inflight slot
+  is always cleared.
+- **K3**: every metric is a *real* count — `cache_hit_rate` is read straight
+  from `SemanticCache.stats()`, `singleflight_collapsed` increments only when
+  a thread genuinely waited on a peer's `Event`. No mocks.
+- **K6**: purely additive — the existing `/api/cache/*` routes, `stats()`,
+  `probe()`, and `seed()` are untouched; 891 tests pass (+7, was 884), 19
+  pre-existing failures unchanged.
+
+## [v1.5.0] — Sprint 25: Feedback Collection
+
+### Added
+- `konjoai/feedback/` package (stdlib-only, zero new hard deps — K5):
+  - `konjoai/feedback/models.py` — `FeedbackEvent` dataclass with OWASP-compliant PII handling: raw question text is NEVER accepted or stored — only `question_hash` (the 16-hex-char SHA-256 prefix). `comment` text is stored as `comment_hash` only. Signal constants: `THUMBS_UP = "thumbs_up"`, `THUMBS_DOWN = "thumbs_down"`, `VALID_SIGNALS` frozenset.
+  - `konjoai/feedback/store.py` — `FeedbackStore`: thread-safe bounded `deque` ring buffer (LRU eviction), `record()`, `query()` (filterable by tenant/signal/question_hash, newest-first, limit-capped), `summary()` (total, thumbs_up, thumbs_down, avg_relevance, by_question per-hash breakdown), `clear()`, iterator support. `get_feedback_store()` singleton + `_reset_singleton()` test helper.
+  - `konjoai/feedback/__init__.py` — re-exports all public symbols.
+- `konjoai/api/routes/feedback.py` — Two endpoints:
+  - `POST /feedback` — submit a thumbs-up/down signal with optional `relevance_score` (0.0–1.0), `comment` (stored as hash), `model`, `latency_ms`. Returns HTTP 201 on success, HTTP 404 when disabled (K3), HTTP 422 on validation failure.
+  - `GET /feedback/summary` — aggregate statistics: `total`, `thumbs_up`, `thumbs_down`, `avg_relevance`, `by_question` per-hash breakdown. Filterable by `tenant_id`. Returns HTTP 404 when disabled.
+- `konjoai/api/app.py` — registers `feedback_route.router`.
+- `konjoai/config.py` — two new settings (all K3 opt-in):
+  - `feedback_enabled: bool = False` — master switch; when False both endpoints return 404.
+  - `feedback_max_events: int = 1000` — ring-buffer capacity (LRU eviction).
+- `tests/unit/test_feedback.py` — 55 new tests:
+  - `FeedbackEvent`: minimal and full construction, `as_dict()` omits None fields, signal constants, `VALID_SIGNALS`.
+  - `FeedbackStore`: construction, record, LRU eviction at max, query newest-first, filter by tenant/signal/question_hash, limit capping, empty store, summary counts/avg_relevance/by_question/tenant_filter, clear, len/iter, thread safety (20 threads × 50 writes), singleton, reset.
+  - Config: `feedback_enabled` default False, `feedback_max_events` default 1000.
+  - API (disabled): `POST /feedback` → 404, `GET /feedback/summary` → 404, 404 detail mentions `FEEDBACK_ENABLED`.
+  - API (enabled): `POST /feedback` → 201 for thumbs_up and thumbs_down, full response contract, with relevance_score, with all optional fields; invalid signal → 422, missing fields → 422, out-of-range score → 422; `GET /feedback/summary` → 200, response contract, reflects submitted feedback, tenant filter.
+  - OWASP PII contract: `FeedbackRequest` has no `question` field, `FeedbackEvent` has no `question` field, comment stored as `comment_hash` only, raw comment text absent from stored event.
+  - Package exports: all public symbols importable.
+
+### Changed
+- `pyproject.toml`, `konjoai/__init__.py`, `helm/kyro/Chart.yaml`, `docs/index.md`, `tests/unit/test_packaging.py`: version bumped `1.4.0 → 1.5.0`; added `test_feedback_importable` to packaging tests.
+
+### Konjo Invariants
+- **K1** (no silent failures): `FeedbackStore.record()` wraps writes in `try/except`; errors are emitted as `logger.warning()` and never propagate to the request path.
+- **K3** (graceful degradation): `feedback_enabled=False` (the default) makes both endpoints return HTTP 404. The store is only lazily instantiated when feedback is enabled.
+- **K5** (zero new hard deps): stdlib only — `collections.deque`, `threading.Lock`. No new packages required.
+- **K6** (backward compatible): two new config keys have sensible defaults; no existing config consumer is affected.
+- **K7** (multi-tenant safety): `FeedbackEvent.tenant_id` is populated from `request.state.tenant_id` when available; `GET /feedback/summary?tenant_id=<id>` filters by tenant.
+
+### Tests
+- Focused: `python -m pytest tests/unit/test_feedback.py -q` → **55 passed in <2s**
+- Full regression: `python -m pytest tests/unit/ -q` → **876 passed, 25 skipped** (was 853 — +55 new; pre-existing failures from missing optional packages unchanged)
+
+---
+
+## [v1.4.0] — Sprint 24: Audit Logging
+
+### Added
+- `konjoai/audit/` package (pre-existing scaffolding now fully wired):
+  - `konjoai/audit/models.py` — `AuditEvent` dataclass with OWASP-compliant PII handling: raw question text, document paths, and user identifiers are NEVER stored — only first-16-hex-chars of SHA-256. `hash_text()` helper. Event type constants: `QUERY`, `INGEST`, `AGENT_QUERY`, `AUTH_FAILURE`, `RATE_LIMITED`.
+  - `konjoai/audit/logger.py` — `InMemoryBackend` (bounded `deque` ring buffer, thread-safe), `JsonLinesBackend` (append-only JSONL, thread-safe, parent directory auto-created), `AuditLogger` (enabled/disabled wrapper — K3 no-op path), `get_audit_logger()` singleton with `_reset_singleton()` test helper.
+  - `konjoai/audit/__init__.py` — re-exports all public symbols.
+- `konjoai/api/routes/audit.py` — Two read-only endpoints:
+  - `GET /audit/events` — paginated, filterable (by `tenant_id`, `event_type`, `limit`) event list. Returns HTTP 404 when `audit_enabled=False` (K3: endpoint existence is not an oracle).
+  - `GET /audit/stats` — per-event-type counts. Returns HTTP 404 when disabled.
+- `konjoai/api/app.py` — registers `audit_route.router`.
+- `konjoai/config.py` — four new settings (all K3 opt-in):
+  - `audit_enabled: bool = False` — master switch; when False every `log()` call is a pure no-op with zero allocation.
+  - `audit_backend: str = "memory"` — `"memory"` (in-process ring buffer) | `"jsonl"` (append-only file).
+  - `audit_log_path: str = "logs/audit.jsonl"` — path used when `audit_backend="jsonl"`.
+  - `audit_max_memory_events: int = 1000` — ring-buffer capacity for the in-memory backend.
+- **Wired into three API routes** (K3: each call is a no-op when `audit_enabled=False`):
+  - `POST /query` — logs `AuditEvent(event_type=QUERY, question_hash=hash_text(req.question), intent=..., cache_hit=..., result_count=..., client_ip=...)`.
+  - `POST /ingest` — logs `AuditEvent(event_type=INGEST, path_hash=hash_text(req.path), chunks_indexed=..., chunks_deduplicated=...)`.
+  - `POST /agent/query` — logs `AuditEvent(event_type=AGENT_QUERY, question_hash=..., result_count=...)`.
+- `tests/unit/test_audit.py` — 36 new tests:
+  - `hash_text`: determinism, 16-char output, different inputs differ, no plaintext leakage.
+  - `AuditEvent`: minimal construction, `as_dict()` omits None fields, includes set fields, event type constants.
+  - `InMemoryBackend`: write+query, limit, filter by tenant, filter by event type, LRU eviction, `max_events` guard, stats, thread safety (20 threads × 50 writes).
+  - `JsonLinesBackend`: write+query roundtrip, empty file, stats, parent directory auto-creation.
+  - `AuditLogger`: disabled no-op, enabled write, write-error safety (K1 — backend errors logged as warnings, never propagated), `query_events` disabled returns `[]`, `stats` disabled returns `{}`, `enabled` property.
+  - Singleton: returns same instance, reset clears instance, JSONL backend selected when configured.
+  - API (disabled): `GET /audit/events` → 404, `GET /audit/stats` → 404.
+  - API (enabled): `GET /audit/events` → 200 with `audit_enabled=True`, `GET /audit/stats` → 200.
+  - OWASP PII contract: raw question text absent from serialized event, raw file path absent.
+  - Config: `audit_enabled` default `False`, `audit_backend` default `"memory"`, `audit_max_memory_events` default `1000`.
+
+### Changed
+- `pyproject.toml`, `konjoai/__init__.py`, `helm/kyro/Chart.yaml`, `docs/index.md`, `tests/unit/test_packaging.py`: version bumped `1.3.0 → 1.4.0`.
+- `tests/unit/test_agent_route.py`, `test_query_crag_route.py`, `test_query_self_rag_route.py`, `test_query_decomposition_route.py`, `test_graph_rag.py`, `test_query_route_timeout.py`: `_Settings*` stubs extended with `audit_enabled: bool = False` (K6: backward-compatible).
+
+### Konjo Invariants
+- **K1** (no silent failures): `AuditLogger.log()` wraps backend writes in `try/except`; errors are emitted as `logger.warning()` and never propagate to the request path. Question text and document paths are hashed — no raw PII is ever written.
+- **K2** (telemetry): the `GET /audit/stats` endpoint surfaces per-event-type counts for operators.
+- **K3** (graceful degradation): `audit_enabled=False` (the default) makes every `log()` call a pure no-op (early return, zero allocation). Both API endpoints return HTTP 404 when disabled. Backend write failures degrade to a warning, not a 500.
+- **K5** (zero new hard deps): stdlib only — `hashlib`, `json`, `threading`, `collections.deque`, `pathlib`.
+- **K6** (backward compatible): four new config keys all have sensible defaults; no existing config consumer is affected. New `_SettingsStub` fields default `False`.
+- **K7** (multi-tenant safety): `AuditEvent.tenant_id` is populated from the FastAPI `Request.state.tenant_id` when available; audit entries are queryable by tenant via `GET /audit/events?tenant_id=<id>`.
+
+### Tests
+- Focused: `/Library/Developer/CommandLineTools/usr/bin/python3 -m pytest tests/unit/test_audit.py -q` → **36 passed in <10s**
+- Full regression: `/Library/Developer/CommandLineTools/usr/bin/python3 -m pytest tests/ -q` → **853 passed, 15 skipped** (was 810 — +43 new tests; 5 pre-existing Python 3.9 compat failures unchanged)
+
+---
+
 ## [v1.3.0] — Sprint 23: Async Cache + Singleflight Stampede Protection
 
 ### Added

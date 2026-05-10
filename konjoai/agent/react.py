@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from typing import Callable, Iterator
 
 from konjoai.generate.generator import GenerationResult, Generator, get_generator
 from konjoai.retrieve.hybrid import HybridResult, hybrid_search

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from konjoai.ingest.chunkers import RecursiveChunker, SentenceWindowChunker, get_chunker
 from konjoai.ingest.loaders import Document
 

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import logging
 import re
-from enum import Enum
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-class QueryIntent(str, Enum):
+class QueryIntent(StrEnum):
     """Possible intent classifications for an incoming query."""
 
     RETRIEVAL = "retrieval"
@@ -44,7 +44,7 @@ class QueryIntent(str, Enum):
 # ---------------------------------------------------------------------------
 
 
-class ChunkComplexity(str, Enum):
+class ChunkComplexity(StrEnum):
     """Query complexity tier, used to select the optimal retrieval chunk size.
 
     Chunk size rationale (validated by ablation, Sprint 10):

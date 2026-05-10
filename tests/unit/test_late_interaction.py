@@ -16,7 +16,6 @@ import pytest
 
 from konjoai.retrieve.late_interaction import maxsim_score
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures
 # ─────────────────────────────────────────────────────────────────────────────
@@ -24,7 +23,6 @@ from konjoai.retrieve.late_interaction import maxsim_score
 @pytest.fixture
 def simple_vecs():
     """Two orthogonal unit vectors in 3-D space."""
-    rng = np.random.default_rng(42)
     q = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)   # (1, 3)
     # doc_0: perfectly aligned with query → MaxSim ≈ 1.0
     # doc_1: orthogonal to query → MaxSim ≈ 0.0

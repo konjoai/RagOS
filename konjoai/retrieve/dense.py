@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from konjoai.store.qdrant import SearchResult, get_store
 from konjoai.embed.encoder import get_encoder
+from konjoai.store.qdrant import SearchResult, get_store
 
 
 def dense_search(

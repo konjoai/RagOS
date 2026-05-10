@@ -9,18 +9,18 @@ Strategy (per project anti-mocking rule):
 - Everything else: real implementation (chunkers, BM25, hybrid, reranker skipped via top_k check)
 """
 
-import numpy as np
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock  # noqa: E402
 
-import konjoai.embed.encoder as enc_module
-import konjoai.store.qdrant as store_module
-import konjoai.generate.generator as gen_module
-import konjoai.retrieve.sparse as sparse_module
-import konjoai.retrieve.reranker as reranker_module
-from konjoai.store.qdrant import SearchResult
-from konjoai.generate.generator import GenerationResult
+import numpy as np  # noqa: E402
+import pytest  # noqa: E402
 
+import konjoai.embed.encoder as enc_module  # noqa: E402
+import konjoai.generate.generator as gen_module  # noqa: E402
+import konjoai.retrieve.reranker as reranker_module  # noqa: E402
+import konjoai.retrieve.sparse as sparse_module  # noqa: E402
+import konjoai.store.qdrant as store_module  # noqa: E402
+from konjoai.generate.generator import GenerationResult  # noqa: E402
+from konjoai.store.qdrant import SearchResult  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -119,11 +119,11 @@ def mock_reranker(monkeypatch):
 class TestFullPipeline:
     def test_ingest_and_query_end_to_end(self, mock_encoder, mock_store, mock_generator, mock_reranker):
         """Ingest two documents, query, and confirm a non-empty answer is returned."""
-        from konjoai.ingest.loaders import Document
+        from konjoai.generate.generator import get_generator
         from konjoai.ingest.chunkers import RecursiveChunker
+        from konjoai.ingest.loaders import Document
         from konjoai.retrieve.hybrid import hybrid_search
         from konjoai.retrieve.reranker import rerank
-        from konjoai.generate.generator import get_generator
 
         docs = [
             Document(content=CONTENT_A, source="policy.md", metadata={}),
@@ -204,9 +204,6 @@ class TestVectroRetrieverPath:
         # Patch get_vectro_retriever() to return our stub.
         monkeypatch.setattr(vr_module, "get_vectro_retriever", lambda: mock_adapter)
 
-        from konjoai.config import get_settings
-        original_settings = get_settings()
-
         # Override settings inline — cache must be cleared.
         from konjoai import config as config_module
         config_module.get_settings.cache_clear()
@@ -214,7 +211,6 @@ class TestVectroRetrieverPath:
         config_module.get_settings.cache_clear()
 
         try:
-            from konjoai.retrieve.hybrid import hybrid_search as real_hs
             # Patch hybrid_search to raise so we catch accidental calls.
             def _should_not_be_called(*a, **kw):
                 raise AssertionError("hybrid_search() was called with use_vectro_retriever=True")
@@ -237,12 +233,10 @@ class TestColBERTMaxSimPath:
 
     def test_maxsim_rerank_changes_order(self):
         """rerank_with_maxsim re-orders results based on MaxSim score."""
-        from konjoai.retrieve.hybrid import HybridResult
-        from konjoai.retrieve.late_interaction import rerank_with_maxsim
         import numpy as np
 
-        DIM = 8
-        rng = np.random.default_rng(0)
+        from konjoai.retrieve.hybrid import HybridResult
+        from konjoai.retrieve.late_interaction import rerank_with_maxsim
 
         # Result A: low cross-encoder score but semantically close to query
         # Result B: high cross-encoder score but orthogonal to query
@@ -268,9 +262,10 @@ class TestColBERTMaxSimPath:
 
     def test_maxsim_rerank_preserves_length(self):
         """rerank_with_maxsim does not drop or add results."""
+        import numpy as np
+
         from konjoai.retrieve.hybrid import HybridResult
         from konjoai.retrieve.late_interaction import rerank_with_maxsim
-        import numpy as np
 
         DIM = 4
         query_emb = np.ones(DIM, dtype=np.float32)
@@ -289,9 +284,10 @@ class TestColBERTMaxSimPath:
 
     def test_maxsim_rerank_degrades_gracefully_on_encoder_error(self):
         """If get_embedding raises, rerank_with_maxsim returns original order (K3)."""
+        import numpy as np
+
         from konjoai.retrieve.hybrid import HybridResult
         from konjoai.retrieve.late_interaction import rerank_with_maxsim
-        import numpy as np
 
         query_emb = np.ones(4, dtype=np.float32)
         results = [

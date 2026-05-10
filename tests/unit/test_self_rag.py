@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -21,7 +20,6 @@ from konjoai.retrieve.self_rag import (
     decide_retrieve,
     get_self_rag_pipeline,
 )
-
 
 # ── Enum smoke tests ──────────────────────────────────────────────────────────
 

@@ -1,18 +1,31 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
-
 import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from konjoai.api.routes import (
     agent as agent_route,
+)
+from konjoai.api.routes import (
+    audit as audit_route,
+)
+from konjoai.api.routes import (
     eval as eval_route,
+)
+from konjoai.api.routes import (
+    feedback as feedback_route,
+)
+from konjoai.api.routes import (
     health as health_route,
+)
+from konjoai.api.routes import (
     ingest,
     query,
+)
+from konjoai.api.routes import (
     vectro as vectro_route,
 )
 from konjoai.api.schemas import HealthResponse
@@ -47,6 +60,8 @@ app.include_router(eval_route.router)
 app.include_router(vectro_route.router)
 app.include_router(agent_route.router)
 app.include_router(health_route.router)
+app.include_router(audit_route.router)
+app.include_router(feedback_route.router)
 
 
 def create_app() -> FastAPI:
@@ -60,8 +75,8 @@ def create_app() -> FastAPI:
 
 @app.get("/health", response_model=HealthResponse, tags=["health"])
 def health() -> HealthResponse:
-    from konjoai.store.qdrant import get_store
     from konjoai.retrieve.sparse import get_sparse_index
+    from konjoai.store.qdrant import get_store
 
     return HealthResponse(
         status="ok",

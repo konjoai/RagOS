@@ -15,7 +15,6 @@ import pytest
 from konjoai.ingest.chunkers import LateChunker, get_chunker
 from konjoai.ingest.loaders import Document
 
-
 # ---------------------------------------------------------------------------
 # Mock encoders (same pattern as test_semantic_splitter.py for consistency)
 # ---------------------------------------------------------------------------
@@ -193,7 +192,6 @@ class TestLateChunkerSplitting:
         sentences = ["Alpha beta.", "Gamma delta.", "Epsilon zeta.", "Eta theta."]
         text = " ".join(sentences)
         chunks = lc.chunk(_doc(text))
-        reconstructed = " ".join(c.content for c in chunks)
         for sent in sentences:
             assert any(
                 sent.rstrip(".") in c.content for c in chunks

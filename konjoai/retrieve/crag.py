@@ -16,13 +16,13 @@ import logging
 import math
 import re
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class CRAGClassification(str, Enum):
+class CRAGClassification(StrEnum):
     """Per-chunk CRAG quality class."""
 
     CORRECT = "CORRECT"

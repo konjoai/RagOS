@@ -14,14 +14,14 @@ from __future__ import annotations
 import asyncio
 import threading
 from dataclasses import dataclass
-from typing import Callable
 
 import numpy as np
 import pytest
 
 from konjoai.auth.tenant import _current_tenant_id, set_current_tenant_id
 from konjoai.cache import AsyncSemanticCache, SemanticCache
-from konjoai.cache.async_cache import _inflight_key, wrap as async_wrap
+from konjoai.cache.async_cache import _inflight_key
+from konjoai.cache.async_cache import wrap as async_wrap
 
 
 def _vec(seed: int, dim: int = 16) -> np.ndarray:
@@ -34,7 +34,7 @@ def _vec(seed: int, dim: int = 16) -> np.ndarray:
 class _StubResp:
     answer: str
 
-    def model_copy(self, *, update: dict) -> "_StubResp":
+    def model_copy(self, *, update: dict) -> _StubResp:
         return _StubResp(answer=update.get("answer", self.answer))
 
 
@@ -149,7 +149,11 @@ class TestSingleflightCollapse:
 class TestErrorPropagation:
     @pytest.mark.asyncio
     async def test_compute_exception_propagates_to_every_waiter(self) -> None:
-        cache = AsyncSemanticCache(SemanticCache(max_size=4, threshold=0.95))
+        # offload_to_thread=False keeps all I/O on the event loop so the
+        # five tasks run sequentially before the gate opens — avoids a race
+        # where async.to_thread() lookups complete in arbitrary order and
+        # some tasks miss the singleflight window.
+        cache = AsyncSemanticCache(SemanticCache(max_size=4, threshold=0.95), offload_to_thread=False)
         v = _vec(20)
 
         compute_started = asyncio.Event()
@@ -250,9 +254,15 @@ class TestTenantScoping:
 class TestSingleflightDisabled:
     @pytest.mark.asyncio
     async def test_each_caller_computes_independently(self) -> None:
+        # offload_to_thread=False + asyncio.sleep(0) in compute is the only
+        # deterministic way to guarantee all three lookups happen before any
+        # store.  With offload_to_thread=True the thread pool may serialise
+        # lookup→store for task 1 before task 2's lookup runs, so task 2 sees
+        # a cache hit and skips compute — making attempts < 3 intermittently.
         cache = AsyncSemanticCache(
             SemanticCache(max_size=8, threshold=0.95),
             singleflight=False,
+            offload_to_thread=False,
         )
         v = _vec(40)
         attempts = 0
@@ -260,10 +270,12 @@ class TestSingleflightDisabled:
         async def compute() -> _StubResp:
             nonlocal attempts
             attempts += 1
+            # Yield so the other tasks can reach their lookup before we store.
+            await asyncio.sleep(0)
             return _StubResp(answer=f"v{attempts}")
 
         # Fire 3 concurrent identical misses with singleflight off.
-        results = await asyncio.gather(*[
+        await asyncio.gather(*[
             cache.get_or_compute("q", v, compute) for _ in range(3)
         ])
         # All 3 invoked compute.

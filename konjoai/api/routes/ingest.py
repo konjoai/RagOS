@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from fastapi import Depends
-
 from konjoai.api.schemas import IngestRequest, IngestResponse, ManifestResponse, VerifyResponse
+from konjoai.audit.models import INGEST, AuditEvent, hash_text
 from konjoai.auth.deps import get_tenant_id
 from konjoai.config import get_settings
 
@@ -23,11 +23,11 @@ def ingest(
     """Load files from *path*, chunk, embed, and upsert into Qdrant + BM25."""
     from pathlib import Path
 
-    from konjoai.ingest.loaders import load_path
-    from konjoai.ingest.chunkers import get_chunker
     from konjoai.embed.encoder import get_encoder
-    from konjoai.store.qdrant import get_store
+    from konjoai.ingest.chunkers import get_chunker
+    from konjoai.ingest.loaders import load_path
     from konjoai.retrieve.sparse import get_sparse_index
+    from konjoai.store.qdrant import get_store
 
     path = Path(req.path)
     if not path.exists():
@@ -88,13 +88,32 @@ def ingest(
                 logger.warning("Corpus drift detected: %d changed files in %s", drift_count, settings.rag_corpus_dir)
 
     logger.info("Ingested %d chunks from %d sources", len(all_contents), len(sources_seen))
-    return IngestResponse(
+
+    response = IngestResponse(
         chunks_indexed=len(all_contents),
         sources_processed=len(sources_seen),
         vectro_metrics=vectro_metrics,
         chunks_deduplicated=n_deduped,
         drift_count=drift_count,
     )
+
+    # ── Audit log (Sprint 24; K3: no-op when audit_enabled=False) ────────────
+    if settings.audit_enabled:
+        from datetime import datetime
+
+        from konjoai.audit import get_audit_logger
+        get_audit_logger().log(AuditEvent(
+            event_type=INGEST,
+            timestamp=datetime.now(UTC).isoformat(),
+            endpoint="/ingest",
+            status_code=200,
+            latency_ms=0.0,
+            path_hash=hash_text(req.path),
+            chunks_indexed=len(all_contents),
+            chunks_deduplicated=n_deduped,
+        ))
+
+    return response
 
 
 class ManifestBody(BaseModel):

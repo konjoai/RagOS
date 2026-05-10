@@ -13,16 +13,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-import pytest
-
 from konjoai.retrieve.crag import (
     CRAGClassification,
     CRAGEvaluator,
-    CRAGResult,
     _reset_crag,
     get_crag_pipeline,
 )
-
 
 # ── Stub document type ────────────────────────────────────────────────────────
 

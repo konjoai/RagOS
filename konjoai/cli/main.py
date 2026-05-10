@@ -50,11 +50,11 @@ def ingest(ctx: click.Context, path: str, strategy: str, chunk_size: int, overla
         konjoai ingest docs/
         konjoai ingest README.md --strategy sentence_window
     """
-    from konjoai.ingest.loaders import load_path
-    from konjoai.ingest.chunkers import get_chunker
     from konjoai.embed.encoder import get_encoder
-    from konjoai.store.qdrant import get_store
+    from konjoai.ingest.chunkers import get_chunker
+    from konjoai.ingest.loaders import load_path
     from konjoai.retrieve.sparse import get_sparse_index
+    from konjoai.store.qdrant import get_store
 
     root = Path(path)
     chunker = get_chunker(strategy, chunk_size, overlap)
@@ -110,9 +110,9 @@ def query(ctx: click.Context, question: str, top_k: int, quiet: bool, stream: bo
         konjoai query "What is the refund policy?"
         konjoai query --top-k 10 "Summarize the architecture"
     """
+    from konjoai.generate.generator import get_generator
     from konjoai.retrieve.hybrid import hybrid_search
     from konjoai.retrieve.reranker import rerank
-    from konjoai.generate.generator import get_generator
 
     hybrid_results = hybrid_search(question)
     reranked = rerank(question, hybrid_results, top_k=top_k)
@@ -180,8 +180,8 @@ def status(quiet: bool) -> None:
     Example:
         konjoai status
     """
-    from konjoai.store.qdrant import get_store
     from konjoai.retrieve.sparse import get_sparse_index
+    from konjoai.store.qdrant import get_store
 
     store = get_store()
     bm25 = get_sparse_index()

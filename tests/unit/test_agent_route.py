@@ -15,18 +15,21 @@ from konjoai.retrieve.reranker import RerankResult
 class _SettingsTelemetryOn:
     enable_telemetry: bool = True
     request_timeout_seconds: float = 30.0
+    audit_enabled: bool = False
 
 
 @dataclass
 class _SettingsTelemetryOff:
     enable_telemetry: bool = False
     request_timeout_seconds: float = 30.0
+    audit_enabled: bool = False
 
 
 @dataclass
 class _SettingsTimeout:
     enable_telemetry: bool = True
     request_timeout_seconds: float = 0.01
+    audit_enabled: bool = False
 
 
 def _make_app() -> FastAPI:
@@ -315,7 +318,7 @@ def test_agent_query_stream_returns_504_on_timeout(monkeypatch):
             await coro_task
         except (_aio.CancelledError, BaseException):
             pass
-        raise _aio.TimeoutError()
+        raise TimeoutError()
 
     with (
         patch("konjoai.api.routes.agent.get_settings", return_value=_SettingsTimeout()),

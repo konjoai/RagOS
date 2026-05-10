@@ -1,0 +1,13 @@
+@import "@konjoai/ui/styles";
+
+@source "../node_modules/@konjoai/ui/src";
+
+@theme {
+  /* kyro intent colors */
+  --color-intent-retrieval:   var(--color-konjo-accent);
+  --color-intent-chat:        var(--color-konjo-violet);
+  --color-intent-aggregation: var(--color-konjo-warm);
+}
+
+:root { color-scheme: dark; }
+html, body, #root { height: 100%; margin: 0; }

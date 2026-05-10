@@ -3,12 +3,14 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Generator as IterGenerator
+from collections.abc import Generator as IterGenerator
+from datetime import UTC
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from konjoai.api.schemas import QueryRequest, QueryResponse, SourceDoc
+from konjoai.audit.models import QUERY, AuditEvent, hash_text
 from konjoai.auth.deps import get_tenant_id
 from konjoai.config import get_settings
 from konjoai.telemetry import PipelineTelemetry, record_pipeline_metrics, timed
@@ -64,7 +66,6 @@ async def query(  # noqa: C901
         """Inner pipeline coroutine — bounded by asyncio.wait_for in the caller."""
         # Hoist generator import unconditionally to avoid UnboundLocalError from
         # the conditional re-import inside the decomposition branch.
-        from konjoai.generate.generator import get_generator  # noqa: PLC0415
         # CRAG + Self-RAG metadata (populated only when those features are enabled)
         crag_confidence: float | None = None
         crag_fallback: bool | None = None
@@ -417,11 +418,34 @@ async def query(  # noqa: C901
                 await asyncio.to_thread(
                     _cache_store.store, effective_question, q_vec, response
                 )
+
+        # ── Audit log (Sprint 24; K3: no-op when audit_enabled=False) ────────
+        if settings.audit_enabled:
+            from datetime import datetime
+
+            from konjoai.audit import get_audit_logger
+            _latency = sum(
+                t.elapsed_ms for t in tel.steps
+            ) if tel.steps else 0.0
+            get_audit_logger().log(AuditEvent(
+                event_type=QUERY,
+                timestamp=datetime.now(UTC).isoformat(),
+                endpoint="/query",
+                status_code=200,
+                latency_ms=_latency,
+                tenant_id=getattr(request.state, "tenant_id", None),
+                client_ip=request.client.host if request.client else None,
+                question_hash=hash_text(req.question),
+                intent=intent.value,
+                cache_hit=bool(response.cache_hit),
+                result_count=len(sources),
+            ))
+
         return response
 
     try:
         return await asyncio.wait_for(_execute(), timeout=timeout_seconds)
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         logger.warning("query timed out after %.2fs", timeout_seconds)
         raise HTTPException(
             status_code=504,
@@ -450,7 +474,7 @@ async def query_stream(  # noqa: C901
     available in the final frame.
     """
     from konjoai.generate.generator import get_generator
-    from konjoai.retrieve.hybrid import HybridResult, hybrid_search
+    from konjoai.retrieve.hybrid import hybrid_search
     from konjoai.retrieve.hyde import hyde_encode
     from konjoai.retrieve.reranker import rerank
     from konjoai.retrieve.router import QueryIntent, classify_intent
@@ -535,7 +559,7 @@ async def query_stream(  # noqa: C901
 
     try:
         return await asyncio.wait_for(_stream_execute(), timeout=timeout_seconds)
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         logger.warning("query/stream timed out after %.2fs", timeout_seconds)
         raise HTTPException(
             status_code=504,
