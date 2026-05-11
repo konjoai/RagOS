@@ -25,9 +25,7 @@
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); height: 100%; overflow: hidden; }
   body {
     font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
-    font-size: 13px;
-    letter-spacing: 0.01em;
-    line-height: 1.5;
+    font-size: 13px; letter-spacing: 0.01em; line-height: 1.5;
   }
 
   /* ── Layout ────────────────────────────────────────────────────────── */
@@ -36,14 +34,9 @@
     display: grid;
     grid-template-rows: 56px 1fr 220px;
     grid-template-columns: 280px 1fr 280px;
-    grid-template-areas:
-      "head head head"
-      "left river right"
-      "bot  bot  bot";
-    gap: 0;
+    grid-template-areas: "head head head" "left river right" "bot bot bot";
   }
-  /* Particle canvas spans the river area */
-  #river-canvas { grid-area: river; width: 100%; height: 100%; display: block; }
+  #river-canvas { grid-area: river; width: 100%; height: 100%; display: block; cursor: crosshair; }
 
   header.ohead {
     grid-area: head;
@@ -51,8 +44,7 @@
     padding: 0 24px;
     border-bottom: 1px solid rgba(255,255,255,0.05);
     background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
-    backdrop-filter: blur(6px);
-    z-index: 5;
+    backdrop-filter: blur(6px); z-index: 5;
   }
   header.ohead .brand { display: flex; align-items: center; gap: 14px; }
   header.ohead .logo {
@@ -60,541 +52,735 @@
     background: radial-gradient(circle at 30% 30%, var(--hit), #1d4d3a 80%);
     box-shadow: 0 0 14px rgba(92,255,177,0.55);
   }
-  header.ohead h1 {
-    font-size: 14px; font-weight: 600; margin: 0; letter-spacing: 0.18em; text-transform: uppercase;
-  }
+  header.ohead h1 { font-size: 14px; font-weight: 600; margin: 0; letter-spacing: 0.18em; text-transform: uppercase; }
   header.ohead .meta { display: flex; gap: 18px; color: var(--ink-dim); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
   header.ohead .meta b { color: var(--ink); font-weight: 500; }
   header.ohead .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--hit); box-shadow: 0 0 10px var(--hit); animation: pulse 1.6s ease-in-out infinite; }
   @keyframes pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 
-  /* ── Side panels ──────────────────────────────────────────────────── */
+  /* ── Sidebars ──────────────────────────────────────────────────────── */
   aside {
-    background: var(--bg-haze);
-    border-right: 1px solid rgba(255,255,255,0.04);
-    overflow-y: auto;
-    padding: 18px 16px 28px;
-    backdrop-filter: blur(8px);
-    z-index: 4;
+    background: var(--bg-haze); border-right: 1px solid rgba(255,255,255,0.04);
+    overflow-y: auto; padding: 18px 16px 28px; backdrop-filter: blur(8px); z-index: 4;
   }
   aside.right { grid-area: right; border-right: none; border-left: 1px solid rgba(255,255,255,0.04); }
-  aside.left { grid-area: left; }
-
+  aside.left  { grid-area: left; }
   .panel { margin-bottom: 24px; }
-  .panel h2 {
-    margin: 0 0 10px; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
-    color: var(--ink-faint); font-weight: 600;
-  }
+  .panel h2 { margin: 0 0 10px; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
 
-  /* ── Water-level gauge (hit rate) ─────────────────────────────────── */
+  /* ── Gauge ─────────────────────────────────────────────────────────── */
   .gauge-shell {
-    position: relative;
-    width: 100%; height: 130px;
-    border: 1px solid rgba(92,255,177,0.25);
-    border-radius: 8px;
-    overflow: hidden;
+    position: relative; width: 100%; height: 130px;
+    border: 1px solid rgba(92,255,177,0.25); border-radius: 8px; overflow: hidden;
     background: rgba(255,255,255,0.02);
   }
   .gauge-water {
-    position: absolute; left: 0; right: 0; bottom: 0;
-    height: 0%;
+    position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
     background: linear-gradient(180deg, rgba(92,255,177,0.85), rgba(36,140,98,0.95));
     transition: height 480ms cubic-bezier(.22,.9,.3,1);
     box-shadow: 0 0 24px rgba(92,255,177,0.55) inset;
   }
+  .gauge-water.overshoot { transition: height 600ms cubic-bezier(0.34,1.56,0.64,1) !important; }
   .gauge-water::before {
     content: ""; position: absolute; left: -50%; right: -50%; top: -8px; height: 14px;
     background: linear-gradient(180deg, rgba(180,255,222,0.95), transparent);
-    border-radius: 50%;
-    animation: ripple 3.4s ease-in-out infinite;
+    border-radius: 50%; animation: ripple 3.4s ease-in-out infinite;
   }
-  @keyframes ripple {
-    0%, 100% { transform: translateX(0) scaleY(1); }
-    50% { transform: translateX(8%) scaleY(1.18); }
-  }
+  @keyframes ripple { 0%,100%{transform:translateX(0) scaleY(1)} 50%{transform:translateX(8%) scaleY(1.18)} }
   .gauge-shell .gauge-readout {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     font-size: 28px; font-weight: 600; letter-spacing: 0.04em;
-    text-shadow: 0 1px 12px rgba(0,0,0,0.6);
-    color: var(--ink);
+    text-shadow: 0 1px 12px rgba(0,0,0,0.6); color: var(--ink);
   }
   .gauge-readout small { font-size: 11px; opacity: 0.55; margin-left: 4px; }
 
-  /* ── EKG sparkline ────────────────────────────────────────────────── */
+  /* ── EKG ───────────────────────────────────────────────────────────── */
   #ekg {
     width: 100%; height: 80px; display: block;
     background: linear-gradient(180deg, rgba(92,255,177,0.04), rgba(108,182,255,0.03));
-    border-radius: 6px;
-    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);
   }
 
-  /* ── Venn diagram (singleflight) ──────────────────────────────────── */
+  /* ── Venn ──────────────────────────────────────────────────────────── */
   .venn-shell { position: relative; height: 110px; display: flex; align-items: center; justify-content: center; }
   .venn-circle {
     position: absolute; width: 78px; height: 78px; border-radius: 50%;
-    border: 1.5px solid var(--miss);
-    background: rgba(108, 182, 255, 0.10);
-    transition: transform 600ms cubic-bezier(.22,.9,.3,1), background 600ms;
-    mix-blend-mode: screen;
+    border: 1.5px solid var(--miss); background: rgba(108,182,255,0.10);
+    transition: transform 600ms cubic-bezier(.22,.9,.3,1), background 600ms; mix-blend-mode: screen;
   }
-  .venn-circle.left { transform: translateX(-22px); }
+  .venn-circle.left  { transform: translateX(-22px); }
   .venn-circle.right { transform: translateX(22px); border-color: var(--hit); background: rgba(92,255,177,0.10); }
-  .venn-shell.collapsed .venn-circle.left  { transform: translateX(-6px); background: rgba(108,182,255,0.30); }
-  .venn-shell.collapsed .venn-circle.right { transform: translateX(6px);  background: rgba(92,255,177,0.30); }
+  .venn-shell.collapsed .venn-circle.left  { transform: translateX(-6px);  background: rgba(108,182,255,0.30); }
+  .venn-shell.collapsed .venn-circle.right { transform: translateX(6px);   background: rgba(92,255,177,0.30); }
   .venn-overlap {
     position: absolute; top: 50%; left: 50%;
     width: 0; height: 60px; transform: translate(-50%, -50%);
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
-    border-radius: 50%;
-    transition: width 600ms cubic-bezier(.22,.9,.3,1);
-    pointer-events: none;
+    border-radius: 50%; transition: width 600ms cubic-bezier(.22,.9,.3,1); pointer-events: none;
   }
 
-  /* ── Tag cloud ────────────────────────────────────────────────────── */
-  #tagcloud {
-    display: flex; flex-wrap: wrap; gap: 6px 10px;
-    min-height: 90px;
-    align-content: flex-start;
-  }
-  .tag {
-    color: var(--ink); opacity: 0.55;
-    transition: opacity 400ms, color 400ms, transform 400ms;
-    cursor: default;
-  }
+  /* ── Tag cloud ─────────────────────────────────────────────────────── */
+  #tagcloud { display: flex; flex-wrap: wrap; gap: 6px 10px; min-height: 90px; align-content: flex-start; }
+  .tag { color: var(--ink); opacity: 0.55; transition: opacity 400ms, color 400ms, transform 400ms; cursor: default; }
   .tag.fresh { color: var(--hit); opacity: 1; }
-  .tag.warm { color: var(--warm); opacity: 0.85; }
-  .tag.cold { color: var(--ink-dim); opacity: 0.45; }
+  .tag.warm  { color: var(--warm); opacity: 0.85; }
+  .tag.cold  { color: var(--ink-dim); opacity: 0.45; }
   .tag:hover { transform: translateY(-1px); opacity: 1; }
 
-  /* ── Stat rows ────────────────────────────────────────────────────── */
+  /* ── Stat rows ─────────────────────────────────────────────────────── */
   .row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed rgba(255,255,255,0.06); font-size: 12px; }
   .row:last-child { border-bottom: none; }
   .row span:first-child { color: var(--ink-dim); }
-  .row span:last-child { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .row span:last-child  { color: var(--ink); font-variant-numeric: tabular-nums; }
 
-  /* ── Cache band overlay ───────────────────────────────────────────── */
+  /* ── River ─────────────────────────────────────────────────────────── */
   .cache-band {
     position: absolute; left: 0; right: 0; height: 92px; top: 50%; transform: translateY(-50%);
     background: linear-gradient(180deg, transparent 0%, var(--band) 50%, transparent 100%);
-    border-top: 1px solid var(--band-edge);
-    border-bottom: 1px solid var(--band-edge);
-    pointer-events: none;
-    z-index: 1;
+    border-top: 1px solid var(--band-edge); border-bottom: 1px solid var(--band-edge);
+    pointer-events: none; z-index: 1;
   }
   .cache-band::after {
     content: "CACHE LAYER · cosine ≥ threshold";
     position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
-    font-size: 9.5px; letter-spacing: 0.28em; color: rgba(92,255,177,0.55);
-    text-transform: uppercase;
+    font-size: 9.5px; letter-spacing: 0.28em; color: rgba(92,255,177,0.55); text-transform: uppercase;
   }
   .river-wrap { grid-area: river; position: relative; overflow: hidden; }
   .river-wrap > #river-canvas { position: absolute; inset: 0; }
-  .river-wrap > .cache-band { z-index: 2; }
+  .river-wrap > .cache-band  { z-index: 2; }
   .river-wrap > .threshold-readout {
-    position: absolute; left: 18px; bottom: 18px; z-index: 3;
+    position: absolute; left: 18px; bottom: 48px; z-index: 3;
     font-size: 10.5px; color: var(--ink-dim); letter-spacing: 0.24em; text-transform: uppercase;
   }
+  /* drag hint */
+  #dragHint {
+    position: absolute; left: 18px; bottom: 10px; z-index: 3;
+    font-size: 9px; color: rgba(92,255,177,0.35); letter-spacing: 0.2em; text-transform: uppercase;
+    pointer-events: none;
+  }
 
-  /* ── Bottom corpus islands ────────────────────────────────────────── */
+  /* ── Islands ───────────────────────────────────────────────────────── */
   footer.islands {
-    grid-area: bot;
-    border-top: 1px solid rgba(255,255,255,0.05);
-    padding: 18px 24px;
-    background: var(--bg-haze);
-    backdrop-filter: blur(8px);
-    z-index: 4;
+    grid-area: bot; border-top: 1px solid rgba(255,255,255,0.05);
+    padding: 18px 24px; background: var(--bg-haze); backdrop-filter: blur(8px); z-index: 4;
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px;
   }
   .island {
-    position: relative;
-    border-radius: 12px;
-    padding: 14px 16px 12px;
-    background: rgba(255,255,255,0.02);
-    border: 1px solid rgba(255,255,255,0.06);
-    overflow: hidden;
-    min-height: 158px;
+    position: relative; border-radius: 12px; padding: 14px 16px 12px;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden; min-height: 158px;
+    /* hover depth */
+    transition: transform 300ms cubic-bezier(0.23,1,0.32,1), filter 300ms cubic-bezier(0.23,1,0.32,1),
+                box-shadow 300ms, opacity 300ms;
+    cursor: pointer;
   }
   .island::before {
-    content: "";
-    position: absolute; inset: -50% -10% auto -10%;
-    height: 200%;
+    content: ""; position: absolute; inset: -50% -10% auto -10%; height: 200%;
     background: radial-gradient(ellipse at center, var(--glow, transparent) 0%, transparent 70%);
     opacity: 0.55; pointer-events: none;
+    transition: opacity 300ms;
   }
-  .island.legal { --glow: rgba(181,148,255,0.32); }
-  .island.medical { --glow: rgba(255,155,210,0.32); }
-  .island.technical { --glow: rgba(92,255,177,0.32); }
-  .island h3 {
-    margin: 0 0 6px; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
-    color: var(--ink); display: flex; align-items: center; gap: 8px;
-  }
-  .island.legal h3 { color: var(--legal); }
-  .island.medical h3 { color: var(--medical); }
+  .island.legal    { --glow: rgba(181,148,255,0.32); }
+  .island.medical  { --glow: rgba(255,155,210,0.32); }
+  .island.technical{ --glow: rgba(92,255,177,0.32);  }
+  .island h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+  .island.legal h3     { color: var(--legal); }
+  .island.medical h3   { color: var(--medical); }
   .island.technical h3 { color: var(--technical); }
   .island h3 .count { color: var(--ink-dim); font-size: 10px; letter-spacing: 0.12em; }
   .island ul { list-style: none; margin: 0; padding: 0; max-height: 110px; overflow-y: auto; }
-  .island li {
-    font-size: 11.5px; padding: 3px 0;
-    color: var(--ink-dim);
-    border-bottom: 1px dashed rgba(255,255,255,0.04);
-  }
+  .island li { font-size: 11.5px; padding: 3px 0; color: var(--ink-dim); border-bottom: 1px dashed rgba(255,255,255,0.04); }
   .island li:hover { color: var(--ink); }
 
-  /* ── Probe input row (top-right) ──────────────────────────────────── */
+  /* hover depth: raised / dimmed */
+  .island.raised {
+    transform: scale(1.035) translateY(-4px);
+    filter: brightness(1.35) saturate(1.5);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+    z-index: 5;
+  }
+  .island.raised::before { opacity: 0.85; }
+  .island.dim { filter: brightness(0.4) saturate(0.35); opacity: 0.7; transform: scale(0.97); }
+
+  /* island tooltip shown when raised */
+  .island-tooltip {
+    position: absolute; top: 10px; right: 12px; pointer-events: none;
+    font-size: 9.5px; color: var(--ink-dim); letter-spacing: 0.14em; text-transform: uppercase;
+    opacity: 0; transition: opacity 200ms; white-space: nowrap;
+  }
+  .island.raised .island-tooltip { opacity: 1; }
+
+  /* island breathing animations */
+  .island.breathing { animation: breathe-idle 3s ease-in-out infinite; }
+  .island.breathing-fast { animation: breathe-fast 1.5s ease-in-out infinite; }
+  .island.flare { animation: islandFlare 400ms ease-out; }
+  @keyframes breathe-idle { 0%,100%{box-shadow:0 0 0 rgba(0,0,0,0)} 50%{box-shadow:0 4px 22px rgba(0,0,0,0.35)} }
+  @keyframes breathe-fast { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+  @keyframes islandFlare  { 0%{filter:brightness(1) saturate(1)} 30%{filter:brightness(2.4) saturate(2.2)} 100%{filter:brightness(1) saturate(1)} }
+
+  /* floating particles emitted from island under load */
+  .island-particle {
+    position: absolute; bottom: 14px; width: 4px; height: 4px; border-radius: 50%;
+    background: currentColor; opacity: 0; pointer-events: none;
+    animation: float-up 1.3s ease-out forwards;
+  }
+  @keyframes float-up {
+    0%   { opacity: 0.75; transform: translateY(0) translateX(0); }
+    100% { opacity: 0; transform: translateY(-58px) translateX(var(--dx, 0px)); }
+  }
+
+  /* ── Misc ──────────────────────────────────────────────────────────── */
   .probe-row { display: flex; gap: 8px; }
-  .probe-row input {
-    flex: 1; padding: 8px 10px; font: inherit;
-    background: rgba(255,255,255,0.04); color: var(--ink);
-    border: 1px solid rgba(255,255,255,0.08); border-radius: 6px;
-    outline: none;
-  }
+  .probe-row input { flex: 1; padding: 8px 10px; font: inherit; background: rgba(255,255,255,0.04); color: var(--ink); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; outline: none; }
   .probe-row input:focus { border-color: var(--hit); box-shadow: 0 0 0 3px rgba(92,255,177,0.15); }
-  .probe-row button {
-    padding: 8px 14px; font: inherit; cursor: pointer;
-    background: var(--hit); color: #052517; border: none; border-radius: 6px; font-weight: 600;
-  }
+  .probe-row button { padding: 8px 14px; font: inherit; cursor: pointer; background: var(--hit); color: #052517; border: none; border-radius: 6px; font-weight: 600; }
   .probe-row button:hover { filter: brightness(1.08); }
   .probe-out { margin-top: 8px; font-size: 11.5px; color: var(--ink-dim); min-height: 16px; }
-
-  /* ── Stats numeric tiles ──────────────────────────────────────────── */
   .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
   .tile { padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
   .tile .k { font-size: 9.5px; letter-spacing: 0.2em; color: var(--ink-faint); text-transform: uppercase; }
   .tile .v { font-size: 18px; font-weight: 600; color: var(--ink); margin-top: 2px; font-variant-numeric: tabular-nums; }
   .tile .v small { font-size: 11px; color: var(--ink-dim); margin-left: 3px; }
-
-  /* ── Misc ─────────────────────────────────────────────────────────── */
   .nav-link { color: var(--ink-dim); text-decoration: none; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; }
   .nav-link:hover { color: var(--hit); }
   .scroll-fade { mask-image: linear-gradient(180deg, transparent, #000 12px, #000 calc(100% - 12px), transparent); }
 </style>
 </head>
 <body>
-  <div id="stage">
-    <header class="ohead">
-      <div class="brand">
-        <div class="logo"></div>
-        <h1>kyro · observatory</h1>
-        <span class="pulse" title="server live"></span>
-      </div>
-      <div class="meta">
-        <span>cache · <b id="metaSize">0</b></span>
-        <span>queries · <b id="metaQueries">0</b></span>
-        <span>collapses · <b id="metaCollapses">0</b></span>
-        <a href="/" class="nav-link">↩ search</a>
-      </div>
-    </header>
-
-    <aside class="left">
-      <div class="panel">
-        <h2>Hit Rate</h2>
-        <div class="gauge-shell" title="liquid rises with cache hit rate">
-          <div class="gauge-water" id="gaugeWater"></div>
-          <div class="gauge-readout"><span id="gaugeText">0</span><small>%</small></div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>Latency · EKG</h2>
-        <canvas id="ekg" width="248" height="80"></canvas>
-      </div>
-
-      <div class="panel">
-        <h2>Singleflight</h2>
-        <div class="venn-shell" id="venn">
-          <div class="venn-circle left"></div>
-          <div class="venn-circle right"></div>
-          <div class="venn-overlap" id="vennOverlap"></div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>Snapshot</h2>
-        <div class="tiles">
-          <div class="tile"><div class="k">avg ms</div><div class="v" id="tileAvg">0<small>ms</small></div></div>
-          <div class="tile"><div class="k">p95 ms</div><div class="v" id="tileP95">0<small>ms</small></div></div>
-          <div class="tile"><div class="k">saved $</div><div class="v" id="tileDollars">0</div></div>
-          <div class="tile"><div class="k">backend</div><div class="v" style="font-size:11px;line-height:1.3" id="tileBackend">memory</div></div>
-        </div>
-      </div>
-    </aside>
-
-    <div class="river-wrap">
-      <canvas id="river-canvas"></canvas>
-      <div class="cache-band"></div>
-      <div class="threshold-readout">RIVER OF KNOWLEDGE · particles flow left → right · hits bounce, misses dive</div>
+<div id="stage">
+  <header class="ohead">
+    <div class="brand">
+      <div class="logo"></div>
+      <h1>kyro · observatory</h1>
+      <span class="pulse" title="live"></span>
     </div>
+    <div class="meta">
+      <span>cache · <b id="metaSize">0</b></span>
+      <span>queries · <b id="metaQueries">0</b></span>
+      <span>collapses · <b id="metaCollapses">0</b></span>
+      <a href="/" class="nav-link">↩ search</a>
+    </div>
+  </header>
 
-    <aside class="right">
-      <div class="panel">
-        <h2>Probe a Question</h2>
-        <div class="probe-row">
-          <input id="probeInput" placeholder="ask the river…" autocomplete="off" />
-          <button id="probeBtn">ask</button>
-        </div>
-        <div class="probe-out" id="probeOut">enter resolves; the cache responds.</div>
+  <aside class="left">
+    <div class="panel">
+      <h2>Hit Rate</h2>
+      <div class="gauge-shell">
+        <div class="gauge-water" id="gaugeWater"></div>
+        <div class="gauge-readout"><span id="gaugeText">0</span><small>%</small></div>
       </div>
+    </div>
+    <div class="panel">
+      <h2>Latency · EKG</h2>
+      <canvas id="ekg" width="248" height="80"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Singleflight</h2>
+      <div class="venn-shell" id="venn">
+        <div class="venn-circle left"></div>
+        <div class="venn-circle right"></div>
+        <div class="venn-overlap" id="vennOverlap"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Snapshot</h2>
+      <div class="tiles">
+        <div class="tile"><div class="k">avg ms</div><div class="v" id="tileAvg">0<small>ms</small></div></div>
+        <div class="tile"><div class="k">p95 ms</div><div class="v" id="tileP95">0<small>ms</small></div></div>
+        <div class="tile"><div class="k">saved $</div><div class="v" id="tileDollars">0</div></div>
+        <div class="tile"><div class="k">backend</div><div class="v" style="font-size:11px;line-height:1.3" id="tileBackend">memory</div></div>
+      </div>
+    </div>
+  </aside>
 
-      <div class="panel">
-        <h2>Top Queries</h2>
-        <div id="tagcloud" class="scroll-fade"></div>
-      </div>
-
-      <div class="panel">
-        <h2>Stats Stream</h2>
-        <div class="row"><span>cache size</span><span id="rowSize">—</span></div>
-        <div class="row"><span>threshold</span><span id="rowThresh">—</span></div>
-        <div class="row"><span>hits</span><span id="rowHits">—</span></div>
-        <div class="row"><span>misses</span><span id="rowMiss">—</span></div>
-        <div class="row"><span>calls avoided</span><span id="rowAvoid">—</span></div>
-        <div class="row"><span>time saved</span><span id="rowTime">—</span></div>
-      </div>
-    </aside>
-
-    <footer class="islands" id="islands">
-      <div class="island legal" data-domain="legal">
-        <h3><span>Legal</span><span class="count" data-count>0 docs</span></h3>
-        <ul data-list></ul>
-      </div>
-      <div class="island medical" data-domain="medical">
-        <h3><span>Medical</span><span class="count" data-count>0 docs</span></h3>
-        <ul data-list></ul>
-      </div>
-      <div class="island technical" data-domain="technical">
-        <h3><span>Technical</span><span class="count" data-count>0 docs</span></h3>
-        <ul data-list></ul>
-      </div>
-    </footer>
+  <div class="river-wrap">
+    <canvas id="river-canvas"></canvas>
+    <div class="cache-band"></div>
+    <div class="threshold-readout">RIVER OF KNOWLEDGE · hold &amp; drag to inject · hits bounce, misses dive</div>
+    <div id="dragHint">[ hold 300ms + drag → release to inject query ]</div>
   </div>
+
+  <aside class="right">
+    <div class="panel">
+      <h2>Probe a Question</h2>
+      <div class="probe-row">
+        <input id="probeInput" placeholder="ask the river…" autocomplete="off" />
+        <button id="probeBtn">ask</button>
+      </div>
+      <div class="probe-out" id="probeOut">enter resolves; the cache responds.</div>
+    </div>
+    <div class="panel">
+      <h2>Top Queries</h2>
+      <div id="tagcloud" class="scroll-fade"></div>
+    </div>
+    <div class="panel">
+      <h2>Stats Stream</h2>
+      <div class="row"><span>cache size</span><span id="rowSize">—</span></div>
+      <div class="row"><span>threshold</span><span id="rowThresh">—</span></div>
+      <div class="row"><span>hits</span><span id="rowHits">—</span></div>
+      <div class="row"><span>misses</span><span id="rowMiss">—</span></div>
+      <div class="row"><span>calls avoided</span><span id="rowAvoid">—</span></div>
+      <div class="row"><span>time saved</span><span id="rowTime">—</span></div>
+    </div>
+  </aside>
+
+  <footer class="islands" id="islands">
+    <div class="island legal breathing" data-domain="legal">
+      <h3><span>Legal</span><span class="count" data-count>0 docs</span></h3>
+      <div class="island-tooltip" id="tip-legal">0 queries</div>
+      <ul data-list></ul>
+    </div>
+    <div class="island medical breathing" data-domain="medical">
+      <h3><span>Medical</span><span class="count" data-count>0 docs</span></h3>
+      <div class="island-tooltip" id="tip-medical">0 queries</div>
+      <ul data-list></ul>
+    </div>
+    <div class="island technical breathing" data-domain="technical">
+      <h3><span>Technical</span><span class="count" data-count>0 docs</span></h3>
+      <div class="island-tooltip" id="tip-technical">0 queries</div>
+      <ul data-list></ul>
+    </div>
+  </footer>
+</div>
 
 <script>
 (() => {
   "use strict";
   const API = location.origin.startsWith("http") ? location.origin : "http://127.0.0.1:8766";
+  const TAU = Math.PI * 2;
 
   // ── State ───────────────────────────────────────────────────────────
   const state = {
     queries: 0, hits: 0, misses: 0, collapses: 0,
-    latencies: [],   // last 64 latency_ms samples
-    tags: new Map(), // question -> { count, last }
+    latencies: [],
+    tags: new Map(),
     domainCounts: { legal: 0, medical: 0, technical: 0 },
-    ripples: [],     // active particle ripples
+    domainQueries: { legal: 0, medical: 0, technical: 0 },
   };
 
-  // ── Particle river ──────────────────────────────────────────────────
+  // Effect queues
+  const resonanceRings = [];  // cache-hit full-width pulses
+  const missFlashes    = [];  // cache-miss band flash
+  const sfChains       = [];  // singleflight visual queues
+  const latencyTimeline = []; // {ms, isHit, isFast} for seismograph
+  const TIMELINE_CAP = 120;
+
+  // Drag-to-query
+  let drag = null; // {x, y, held, timer}
+
+  // ── Canvas + sizing ─────────────────────────────────────────────────
   const canvas = document.getElementById("river-canvas");
-  const ctx = canvas.getContext("2d");
+  const ctx    = canvas.getContext("2d");
   let W = 0, H = 0, BAND_TOP = 0, BAND_BOT = 0;
+
   function resize() {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr  = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
+    canvas.width  = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     W = rect.width; H = rect.height;
-    BAND_TOP = H/2 - 46; BAND_BOT = H/2 + 46;
+    BAND_TOP = H / 2 - 46;
+    BAND_BOT = H / 2 + 46;
   }
   window.addEventListener("resize", resize);
 
-  // Particle types: ambient (faint dots flowing l→r), and event (a query — bounce/dive).
+  // ── Ambient particle ────────────────────────────────────────────────
   class Ambient {
-    constructor() { this.reset(); }
-    reset() {
-      this.x = Math.random() * W;
-      this.y = Math.random() * H;
-      this.vx = 0.35 + Math.random() * 0.9;
-      this.r = Math.random() < 0.05 ? 1.6 : 0.8;
-      this.alpha = 0.15 + Math.random() * 0.35;
-      this.hue = 200 + Math.random() * 40; // cool blues
+    constructor(firstTime = false) { this.init(firstTime); }
+    init(firstTime = false) {
+      this.x       = firstTime ? Math.random() * W : -8;
+      this.y       = BAND_TOP + Math.random() * (BAND_BOT - BAND_TOP);
+      this.vxBase  = 0.35 + Math.random() * 0.9;
+      this.vxExtra = 0;
+      this.vyExtra = 0;
+      this.r       = Math.random() < 0.05 ? 1.6 : 0.8;
+      this.alpha   = 0.15 + Math.random() * 0.35;
+      this.hue     = 200 + Math.random() * 40;
+      this.cached  = Math.random() < 0.4; // ~40% start as gold (cached)
+      this.trailY  = null;                // target Y for neural trail
     }
     step() {
-      this.x += this.vx;
-      if (this.x > W + 8) { this.x = -8; this.y = Math.random() * H; }
+      this.x       += this.vxBase + this.vxExtra;
+      this.y       += this.vyExtra;
+      this.vxExtra *= 0.87;
+      this.vyExtra *= 0.87;
+      if (this.x > W + 8) this.init();
     }
     draw() {
+      // Neural pathway trail: cached particles draw a faint line toward the band
+      if (this.cached) {
+        const bandMid = (BAND_TOP + BAND_BOT) / 2;
+        const dist = Math.abs(this.y - bandMid);
+        if (dist > 4) {
+          ctx.save();
+          const trailAlpha = Math.max(0, 0.08 - dist * 0.0004);
+          if (trailAlpha > 0.005) {
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y);
+            ctx.lineTo(this.x, bandMid);
+            ctx.strokeStyle = `rgba(255,215,0,${trailAlpha})`;
+            ctx.lineWidth = 0.7;
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+      const fill = this.cached
+        ? `hsla(45,100%,62%,${this.alpha + 0.12})`
+        : `hsla(${this.hue},70%,72%,${this.alpha})`;
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-      ctx.fillStyle = `hsla(${this.hue}, 70%, 70%, ${this.alpha})`;
+      ctx.arc(this.x, this.y, this.r, 0, TAU);
+      ctx.fillStyle = fill;
       ctx.fill();
     }
   }
-  class Event {
-    /**
-     * mode = "hit" → bounce off the cache band, glow green
-     * mode = "miss" → dive below band, journey, return blue
-     */
-    constructor(mode) {
-      this.mode = mode;
-      this.x = -10;
-      this.y = BAND_TOP - 12 - Math.random() * 60; // start slightly above band
-      this.vx = 1.4 + Math.random() * 1.0;
-      this.vy = 0;
-      this.life = 0;
+
+  // ── Query-event particle ────────────────────────────────────────────
+  class QueryEvent {
+    constructor(mode, x = null) {
+      this.mode  = mode;
+      this.x     = x != null ? x : -10;
+      this.y     = BAND_TOP - 12 - Math.random() * 60;
+      this.vx    = 1.4 + Math.random() * 1.0;
+      this.vy    = 0;
+      this.life  = 0;
       this.maxLife = 380 + Math.random() * 80;
-      this.dipped = false;
-      this.returned = false;
+      this.dipped = false; this.returned = false;
     }
     step() {
-      this.life++;
-      this.x += this.vx;
-
+      this.life++; this.x += this.vx;
       if (this.mode === "hit") {
-        // simple drift toward band, brief bounce, exit right.
         const target = (BAND_TOP + BAND_BOT) / 2;
         this.y += (target - this.y) * 0.04;
-        if (this.life === 60) {
-          // bounce away from band — kick upward
-          this.vy = -2.2;
-        }
-        this.y += this.vy;
-        this.vy *= 0.94;
+        if (this.life === 60) this.vy = -2.2;
+        this.y += this.vy; this.vy *= 0.94;
       } else {
-        // miss path: enter, dive through band, descend, then climb out blue.
-        if (!this.dipped && this.x > W * 0.40) {
-          this.vy = 2.2;
-          this.dipped = true;
-        }
-        if (this.dipped && this.y > H - 20) {
-          this.vy = -1.7;
-          this.returned = true;
-        }
-        this.y += this.vy;
-        this.vy *= 0.985;
+        if (!this.dipped && this.x > W * 0.40) { this.vy = 2.2; this.dipped = true; }
+        if (this.dipped && this.y > H - 20)   { this.vy = -1.7; this.returned = true; }
+        this.y += this.vy; this.vy *= 0.985;
       }
     }
     draw() {
       const fade = Math.max(0, 1 - this.life / this.maxLife);
       ctx.save();
       if (this.mode === "hit") {
-        ctx.shadowBlur = 14; ctx.shadowColor = `rgba(92,255,177,${0.85 * fade})`;
-        ctx.fillStyle = `rgba(180,255,222,${0.95 * fade})`;
+        ctx.shadowBlur = 14; ctx.shadowColor = `rgba(92,255,177,${0.85*fade})`;
+        ctx.fillStyle = `rgba(180,255,222,${0.95*fade})`;
       } else {
         const c = this.returned ? "108,182,255" : "255,210,140";
-        ctx.shadowBlur = 12; ctx.shadowColor = `rgba(${c},${0.7 * fade})`;
-        ctx.fillStyle = `rgba(${c},${0.95 * fade})`;
+        ctx.shadowBlur = 12; ctx.shadowColor = `rgba(${c},${0.7*fade})`;
+        ctx.fillStyle = `rgba(${c},${0.95*fade})`;
       }
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, 2.6, 0, Math.PI * 2);
-      ctx.fill();
-      // trailing line
-      ctx.strokeStyle = ctx.fillStyle;
-      ctx.lineWidth = 1.1;
-      ctx.beginPath();
-      ctx.moveTo(this.x - 14, this.y);
-      ctx.lineTo(this.x, this.y);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(this.x, this.y, 2.6, 0, TAU); ctx.fill();
+      ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.moveTo(this.x - 14, this.y); ctx.lineTo(this.x, this.y); ctx.stroke();
       ctx.restore();
     }
     dead() { return this.x > W + 30 || this.life > this.maxLife; }
   }
 
   resize();
-  const ambients = Array.from({ length: 240 }, () => new Ambient());
-  const events = [];
+  const ambients = Array.from({ length: 240 }, (_, i) => new Ambient(true));
+  const events   = [];
 
+  // ── Effect triggers ──────────────────────────────────────────────────
+
+  function triggerResonance() {
+    resonanceRings.push({ age: 0, maxAge: 48 }); // 800ms / ~16.7ms
+    // Gauge needle overshoot
+    const gw = document.getElementById("gaugeWater");
+    gw.classList.add("overshoot");
+    setTimeout(() => gw.classList.remove("overshoot"), 650);
+  }
+
+  function triggerMissImpact(impactX) {
+    const mx = impactX ?? W * 0.4;
+    const my = (BAND_TOP + BAND_BOT) / 2;
+    missFlashes.push({ age: 0, maxAge: 14 });
+    for (const a of ambients) {
+      const dx = a.x - mx, dy = a.y - my;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 90 && dist > 1) {
+        a.vxExtra += (dx / dist) * 8;
+        a.vyExtra += (dy / dist) * 4;
+      }
+    }
+  }
+
+  function triggerSFChain() {
+    // Visual singleflight queue: leader + 3 followers chained behind it
+    const leaderX = W * 0.3 + Math.random() * W * 0.3;
+    const leaderY = BAND_TOP + (BAND_BOT - BAND_TOP) * 0.5;
+    const followers = Array.from({ length: 3 }, (_, i) => ({
+      x: leaderX - 28 * (i + 1) + (Math.random() - 0.5) * 8,
+      y: leaderY + (Math.random() - 0.5) * 16,
+      vx: 0, vy: 0,
+    }));
+    sfChains.push({ lx: leaderX, ly: leaderY, followers, age: 0, maxAge: 90, breaking: false });
+  }
+
+  // ── Draw effects ─────────────────────────────────────────────────────
+
+  function drawResonanceRings() {
+    for (let i = resonanceRings.length - 1; i >= 0; i--) {
+      const r = resonanceRings[i];
+      const t = r.age / r.maxAge;
+      const eased = 1 - Math.pow(1 - t, 3);
+      const alpha = (1 - t) * 0.28;
+      const bandMid = (BAND_TOP + BAND_BOT) / 2;
+      const spread = eased * H * 0.68;
+      ctx.save();
+      // upward wave
+      const gUp = ctx.createLinearGradient(0, bandMid - spread, 0, bandMid);
+      gUp.addColorStop(0, "rgba(0,255,204,0)");
+      gUp.addColorStop(1, `rgba(0,255,204,${alpha})`);
+      ctx.fillStyle = gUp;
+      ctx.fillRect(0, bandMid - spread, W, spread);
+      // downward wave
+      const gDn = ctx.createLinearGradient(0, bandMid, 0, bandMid + spread);
+      gDn.addColorStop(0, `rgba(0,255,204,${alpha})`);
+      gDn.addColorStop(1, "rgba(0,255,204,0)");
+      ctx.fillStyle = gDn;
+      ctx.fillRect(0, bandMid, W, spread);
+      ctx.restore();
+      r.age++;
+      if (r.age >= r.maxAge) resonanceRings.splice(i, 1);
+    }
+  }
+
+  function drawMissFlashes() {
+    for (let i = missFlashes.length - 1; i >= 0; i--) {
+      const f = missFlashes[i];
+      const t = f.age / f.maxAge;
+      const alpha = (1 - t) * 0.4;
+      ctx.save();
+      ctx.fillStyle = `rgba(239,68,68,${alpha})`;
+      ctx.fillRect(0, BAND_TOP, W, BAND_BOT - BAND_TOP);
+      ctx.restore();
+      f.age++;
+      if (f.age >= f.maxAge) missFlashes.splice(i, 1);
+    }
+  }
+
+  function drawSFChains() {
+    for (let i = sfChains.length - 1; i >= 0; i--) {
+      const chain = sfChains[i];
+      chain.age++;
+      if (chain.age > 60 && !chain.breaking) chain.breaking = true;
+      if (chain.breaking) {
+        // snap: followers accelerate away
+        for (const f of chain.followers) {
+          f.vx += (f.x - chain.lx) * 0.08;
+          f.vy += (f.y - chain.ly) * 0.05;
+          f.x  += f.vx; f.y += f.vy;
+        }
+      }
+      if (chain.age >= chain.maxAge) { sfChains.splice(i, 1); continue; }
+
+      const fadeOut = Math.max(0, 1 - (chain.age - 60) / 30);
+      const pulse   = 0.35 + 0.25 * Math.sin(chain.age * 0.18);
+
+      // Draw threads from each follower to leader
+      if (!chain.breaking) {
+        ctx.save();
+        for (const f of chain.followers) {
+          ctx.beginPath();
+          ctx.moveTo(f.x, f.y);
+          ctx.lineTo(chain.lx, chain.ly);
+          ctx.strokeStyle = `rgba(92,255,177,${pulse * fadeOut})`;
+          ctx.lineWidth = 0.9;
+          ctx.setLineDash([4, 5]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        ctx.restore();
+      }
+      // Leader dot
+      ctx.save();
+      ctx.shadowBlur = 14; ctx.shadowColor = "rgba(92,255,177,0.9)";
+      ctx.fillStyle = `rgba(200,255,230,${fadeOut})`;
+      ctx.beginPath(); ctx.arc(chain.lx, chain.ly, 4, 0, TAU); ctx.fill();
+      ctx.restore();
+      // Follower dots
+      for (const f of chain.followers) {
+        ctx.save();
+        ctx.shadowBlur = 8; ctx.shadowColor = `rgba(92,255,177,${0.6 * fadeOut})`;
+        ctx.fillStyle = `rgba(150,255,200,${0.75 * fadeOut})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y, 2.5, 0, TAU); ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+
+  function drawDragOrb() {
+    if (!drag || !drag.held) return;
+    const pulse = 1 + 0.12 * Math.sin(performance.now() * 0.01);
+    ctx.save();
+    ctx.shadowBlur = 28; ctx.shadowColor = "rgba(92,255,177,0.95)";
+    ctx.fillStyle = "rgba(210,255,238,0.92)";
+    ctx.beginPath(); ctx.arc(drag.x, drag.y, 7 * pulse, 0, TAU); ctx.fill();
+    // trailing ripple
+    const rippleR = 14 + 8 * Math.sin(performance.now() * 0.008);
+    ctx.globalAlpha = 0.25;
+    ctx.strokeStyle = "rgba(92,255,177,0.8)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(drag.x, drag.y, rippleR, 0, TAU); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Latency seismograph (bottom of river) ───────────────────────────
+  const SEISMO_H = 34;
+
+  function addTimelineSample(ms, isHit) {
+    latencyTimeline.push({ ms, isHit, isFast: ms < 50 });
+    if (latencyTimeline.length > TIMELINE_CAP) latencyTimeline.shift();
+  }
+
+  function drawSeismograph() {
+    const n = latencyTimeline.length;
+    if (!n) return;
+    const stripY = H - SEISMO_H - 2;
+    const maxMs  = 1000;
+    const colW   = W / TIMELINE_CAP + 0.5;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < n; i++) {
+      const s = latencyTimeline[i];
+      const x = (i / TIMELINE_CAP) * W;
+      const barH = Math.min(1, s.ms / maxMs) * SEISMO_H;
+      const col = s.isHit
+        ? (s.isFast ? "rgba(0,255,136,0.38)" : "rgba(255,200,0,0.38)")
+        : "rgba(255,68,68,0.42)";
+      ctx.fillStyle = col;
+      ctx.fillRect(x, stripY + SEISMO_H - barH, colW, barH);
+    }
+    // timeline border
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = "rgba(255,255,255,0.07)";
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(0, stripY); ctx.lineTo(W, stripY); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Main render loop ─────────────────────────────────────────────────
   function frame() {
     ctx.clearRect(0, 0, W, H);
-    // soft river vignette
+    // river vignette
     const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, "rgba(108,182,255,0.04)");
+    grad.addColorStop(0,   "rgba(108,182,255,0.04)");
     grad.addColorStop(0.5, "rgba(92,255,177,0.05)");
-    grad.addColorStop(1, "rgba(108,182,255,0.04)");
+    grad.addColorStop(1,   "rgba(108,182,255,0.04)");
     ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+    drawMissFlashes();
+    drawResonanceRings();
 
     for (const a of ambients) { a.step(); a.draw(); }
     for (let i = events.length - 1; i >= 0; i--) {
-      const e = events[i];
-      e.step(); e.draw();
+      const e = events[i]; e.step(); e.draw();
       if (e.dead()) events.splice(i, 1);
     }
+
+    drawSFChains();
+    drawDragOrb();
+    drawSeismograph();
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 
-  function emit(mode, count = 1) {
-    for (let i = 0; i < count; i++) events.push(new Event(mode));
+  function emit(mode, count = 1, x = null) {
+    for (let i = 0; i < count; i++) events.push(new QueryEvent(mode, x));
   }
 
-  // ── Stats stream → widgets ──────────────────────────────────────────
-  function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+  function emitBurst(bx, by, n = 8) {
+    for (let i = 0; i < n; i++) {
+      const angle = (i / n) * TAU;
+      const spd   = 2 + Math.random() * 2.5;
+      const a = new Ambient(false);
+      a.x = bx; a.y = by;
+      a.vxBase  = Math.cos(angle) * spd;
+      a.vxExtra = 0; a.vyExtra = Math.sin(angle) * spd;
+      a.cached  = false;
+      events.push(new QueryEvent("hit", bx));
+    }
+  }
 
+  // ── DOM helpers ──────────────────────────────────────────────────────
+  function setText(id, v) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = v;
+  }
+
+  // ── Stats → widgets ──────────────────────────────────────────────────
   function renderStats(s) {
     const total = (s.total_hits || 0) + (s.total_misses || 0);
-    const hitRate = total > 0 ? (s.total_hits / total) : 0;
+    const hitRate = total > 0 ? s.total_hits / total : 0;
     const pct = Math.round(hitRate * 100);
-
     document.getElementById("gaugeWater").style.height = pct + "%";
     setText("gaugeText", pct);
     setText("metaSize", s.size ?? "—");
     setText("metaQueries", total);
-    setText("rowSize", s.size + " / " + s.max_size);
-    setText("rowThresh", (s.threshold ?? "—"));
-    setText("rowHits", s.total_hits ?? 0);
-    setText("rowMiss", s.total_misses ?? 0);
-    setText("rowAvoid", s.calls_avoided ?? 0);
-    setText("rowTime", ((s.time_saved_seconds ?? 0).toFixed(2)) + "s");
+    setText("rowSize",   (s.size ?? 0) + " / " + (s.max_size ?? "—"));
+    setText("rowThresh", s.threshold ?? "—");
+    setText("rowHits",   s.total_hits ?? 0);
+    setText("rowMiss",   s.total_misses ?? 0);
+    setText("rowAvoid",  s.calls_avoided ?? 0);
+    setText("rowTime",   ((s.time_saved_seconds ?? 0).toFixed(2)) + "s");
     setText("tileDollars", "$" + ((s.dollars_saved ?? 0).toFixed(3)));
     setText("tileBackend", s.backend ? s.backend.replace("konjoai.cache.", "") : "memory");
+    // island breathing speed: fast if high query rate
+    const fast = total > 20 && hitRate > 0.6;
+    document.querySelectorAll(".island").forEach(el => {
+      el.classList.toggle("breathing",      !fast);
+      el.classList.toggle("breathing-fast",  fast);
+    });
   }
 
   function renderLatency() {
-    const cv = document.getElementById("ekg");
+    const cv   = document.getElementById("ekg");
     const dctx = cv.getContext("2d");
     const w = cv.width, h = cv.height;
     dctx.clearRect(0, 0, w, h);
     const samples = state.latencies.slice(-64);
     if (!samples.length) return;
-    const max = Math.max(...samples, 50);
-
-    // baseline
+    const max    = Math.max(...samples, 50);
     dctx.strokeStyle = "rgba(255,255,255,0.06)";
-    dctx.beginPath();
-    dctx.moveTo(0, h * 0.7); dctx.lineTo(w, h * 0.7);
-    dctx.stroke();
-
-    // EKG path: fast latency = sharp narrow peak; slow = wider wave
-    dctx.lineWidth = 1.4;
+    dctx.beginPath(); dctx.moveTo(0, h * 0.7); dctx.lineTo(w, h * 0.7); dctx.stroke();
+    dctx.lineWidth   = 1.4;
     dctx.strokeStyle = "rgba(92,255,177,0.9)";
-    dctx.shadowBlur = 6;
+    dctx.shadowBlur  = 6;
     dctx.shadowColor = "rgba(92,255,177,0.7)";
     dctx.beginPath();
     const stride = w / Math.max(samples.length, 1);
     for (let i = 0; i < samples.length; i++) {
-      const cx = i * stride;
-      const ms = samples[i];
-      const norm = Math.min(1, ms / max);
-      const peakHeight = 6 + norm * (h * 0.55);
-      // ekg shape: baseline → spike up → dip → baseline
-      const baseY = h * 0.7;
-      const pSegX = stride * 0.35;
-      const peakX = cx + pSegX * 0.4;
-      const dipX  = cx + pSegX * 0.7;
-      dctx.lineTo(cx, baseY);
-      dctx.lineTo(peakX, baseY - peakHeight);
-      dctx.lineTo(dipX, baseY + peakHeight * 0.18);
-      dctx.lineTo(cx + pSegX, baseY);
+      const cx        = i * stride;
+      const norm      = Math.min(1, samples[i] / max);
+      const peakH     = 6 + norm * (h * 0.55);
+      const baseY     = h * 0.7;
+      const pSegX     = stride * 0.35;
+      dctx.lineTo(cx,              baseY);
+      dctx.lineTo(cx + pSegX*0.4,  baseY - peakH);
+      dctx.lineTo(cx + pSegX*0.7,  baseY + peakH * 0.18);
+      dctx.lineTo(cx + pSegX,      baseY);
     }
     dctx.stroke();
   }
 
   function renderTags() {
     const cloud = document.getElementById("tagcloud");
-    const now = Date.now();
-    const list = Array.from(state.tags.entries())
-      .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 18);
+    const now   = Date.now();
+    const list  = Array.from(state.tags.entries())
+      .sort((a, b) => b[1].count - a[1].count).slice(0, 18);
     cloud.innerHTML = "";
     for (const [q, info] of list) {
-      const recencyMs = now - info.last;
-      let tone = "cold";
-      if (recencyMs < 8000) tone = "fresh";
-      else if (recencyMs < 60000) tone = "warm";
+      const age  = now - info.last;
+      const tone = age < 8000 ? "fresh" : age < 60000 ? "warm" : "cold";
       const span = document.createElement("span");
-      span.className = "tag " + tone;
-      const size = 11 + Math.min(8, info.count);
-      span.style.fontSize = size + "px";
+      span.className   = "tag " + tone;
+      span.style.fontSize = (11 + Math.min(8, info.count)) + "px";
       span.textContent = q.length > 32 ? q.slice(0, 30) + "…" : q;
-      span.title = `${q} · ${info.count}× · ${Math.round(recencyMs/1000)}s ago`;
+      span.title       = `${q} · ${info.count}× · ${Math.round(age/1000)}s ago`;
       cloud.appendChild(span);
     }
     if (!list.length) {
@@ -603,39 +789,103 @@
   }
 
   function renderVenn() {
-    const total = state.queries;
-    const ratio = total > 0 ? (state.collapses / total) : 0;
+    const total   = state.queries;
+    const ratio   = total > 0 ? state.collapses / total : 0;
     const overlap = Math.min(140, 4 + ratio * 220);
     document.getElementById("vennOverlap").style.width = overlap + "px";
     document.getElementById("venn").classList.toggle("collapsed", ratio > 0.2);
     setText("metaCollapses", state.collapses);
   }
 
-  // ── Corpus islands ─────────────────────────────────────────────────
-  async function loadCorpus() {
-    try {
-      const r = await fetch(API + "/api/corpus/load");
-      const m = await r.json();
-      if (!m.loaded) return;
-      state.domainCounts = m.domains || state.domainCounts;
-      const islands = document.querySelectorAll(".island");
-      islands.forEach(node => {
-        const dom = node.dataset.domain;
-        const docs = (m.documents || []).filter(d => d.domain === dom);
-        node.querySelector("[data-count]").textContent = docs.length + " docs";
-        const ul = node.querySelector("[data-list]");
-        ul.innerHTML = "";
-        for (const d of docs) {
-          const li = document.createElement("li");
-          li.textContent = d.title;
-          li.title = d.preview;
-          ul.appendChild(li);
-        }
-      });
-    } catch (e) {
-      console.warn("corpus load failed", e);
+  // ── Domain / corpus helpers ──────────────────────────────────────────
+  const DOMAIN_PATTERNS = {
+    legal:     /gdpr|privacy|terms|legal|liability|consent|retention|copyright|deletion|ccpa|dpa/i,
+    medical:   /drug|dose|dosing|medication|interaction|mg|anticoagulant|warfarin|metformin|acetaminophen|inr|rx|clinical/i,
+    technical: /api|kubernetes|helm|postgres|deploy|authentication|rate.?limit|docker|sql|k8s|ssl|tls/i,
+  };
+
+  function detectDomain(question) {
+    for (const [dom, re] of Object.entries(DOMAIN_PATTERNS)) {
+      if (re.test(question)) return dom;
+    }
+    return null;
+  }
+
+  function flareIsland(domain) {
+    if (!domain) return;
+    const el = document.querySelector(`.island[data-domain="${domain}"]`);
+    if (!el) return;
+    el.classList.remove("flare");
+    void el.offsetWidth; // reflow to restart animation
+    el.classList.add("flare");
+    setTimeout(() => el.classList.remove("flare"), 450);
+    // Emit 2-3 floating particles from the island
+    state.domainQueries[domain] = (state.domainQueries[domain] || 0) + 1;
+    setText("tip-" + domain, state.domainQueries[domain] + " queries");
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => emitIslandParticle(el), i * 120);
     }
   }
+
+  function emitIslandParticle(islandEl) {
+    const dot = document.createElement("span");
+    dot.className = "island-particle";
+    dot.style.left = (15 + Math.random() * 70) + "%";
+    dot.style.setProperty("--dx", ((Math.random() - 0.5) * 36) + "px");
+    islandEl.appendChild(dot);
+    setTimeout(() => dot.remove(), 1400);
+  }
+
+  // ── Corpus islands hover depth ───────────────────────────────────────
+  document.querySelectorAll(".island").forEach(island => {
+    island.addEventListener("mouseenter", () => {
+      document.querySelectorAll(".island").forEach(el => {
+        el.classList.toggle("raised", el === island);
+        el.classList.toggle("dim",    el !== island);
+      });
+    });
+    island.addEventListener("mouseleave", () => {
+      document.querySelectorAll(".island").forEach(el => {
+        el.classList.remove("raised", "dim");
+      });
+    });
+  });
+
+  // ── Drag-to-query gesture ────────────────────────────────────────────
+  function canvasXY(e) {
+    const rect = canvas.getBoundingClientRect();
+    const src  = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+  }
+
+  canvas.addEventListener("mousedown", e => {
+    const { x, y } = canvasXY(e);
+    drag = { x, y, held: false, timer: setTimeout(() => { drag && (drag.held = true); }, 300) };
+  });
+  canvas.addEventListener("mousemove", e => {
+    if (!drag) return;
+    const { x, y } = canvasXY(e);
+    drag.x = x; drag.y = y;
+  });
+  canvas.addEventListener("mouseup", e => {
+    if (!drag) return;
+    clearTimeout(drag.timer);
+    if (drag.held) {
+      const { x, y } = canvasXY(e);
+      emitBurst(x, y, 10);
+      // Highlight nearest island (divide canvas width into thirds)
+      const fraction = x / W;
+      const dom = fraction < 0.33 ? "legal" : fraction < 0.67 ? "medical" : "technical";
+      flareIsland(dom);
+      emit("hit", 3, x);
+      state.hits += 3;
+      state.queries += 3;
+      triggerResonance();
+      addTimelineSample(8, true);
+    }
+    drag = null;
+  });
+  canvas.addEventListener("mouseleave", () => { if (drag) { clearTimeout(drag.timer); drag = null; } });
 
   // ── Probe ────────────────────────────────────────────────────────────
   async function probe(q) {
@@ -649,26 +899,29 @@
         body: JSON.stringify({ question: q }),
       });
       const j = await r.json();
-      // Recordings
       state.queries++;
-      const tag = state.tags.get(q) || { count: 0, last: 0 };
+      const tag  = state.tags.get(q) || { count: 0, last: 0 };
       tag.count++; tag.last = Date.now();
       state.tags.set(q, tag);
       state.latencies.push(j.latency_ms || 0);
+      const domain = detectDomain(q);
+      flareIsland(domain);
 
       if (j.hit) {
         state.hits++;
         emit("hit");
-        // Singleflight is illustrated as: rapid repeated identical asks → coalesce.
-        if (tag.count > 1 && Date.now() - tag.last < 1500) state.collapses++;
-        out.innerHTML = `<b style="color:var(--hit)">HIT</b> · score ${j.score_pct}% · ${j.latency_ms.toFixed(2)}ms<br><span style="opacity:0.7">${j.cached_answer}</span>`;
+        triggerResonance();
+        addTimelineSample(j.latency_ms || 5, true);
+        if (j.collapsed) { state.collapses++; triggerSFChain(); }
+        out.innerHTML = `<b style="color:var(--hit)">HIT</b> · score ${j.score_pct ?? "?"}% · ${(j.latency_ms || 0).toFixed(2)}ms<br><span style="opacity:0.7">${j.cached_answer}</span>`;
       } else {
         state.misses++;
         emit("miss");
-        out.innerHTML = `<b style="color:var(--miss)">MISS</b> · stored · ${j.latency_ms.toFixed(2)}ms<br><span style="opacity:0.7">${j.cached_answer}</span>`;
+        triggerMissImpact(W * 0.4);
+        addTimelineSample(j.latency_ms || 200, false);
+        out.innerHTML = `<b style="color:var(--miss)">MISS</b> · stored · ${(j.latency_ms || 0).toFixed(2)}ms<br><span style="opacity:0.7">${j.cached_answer}</span>`;
       }
       renderTags(); renderVenn(); renderLatency();
-      // Refresh server-side stats too.
       pullStats();
     } catch (e) {
       out.textContent = "probe failed: " + e.message;
@@ -680,17 +933,36 @@
       const r = await fetch(API + "/api/cache/stats");
       const s = await r.json();
       renderStats(s);
-      // sample tile latencies based on running averages (we keep our own client samples, but show server-side aggregate too)
-      const avg = state.latencies.length ? (state.latencies.reduce((a,b)=>a+b,0) / state.latencies.length) : 0;
+      const avg    = state.latencies.length ? state.latencies.reduce((a,b)=>a+b,0)/state.latencies.length : 0;
       const sorted = [...state.latencies].sort((a,b)=>a-b);
-      const p95 = sorted.length ? sorted[Math.min(sorted.length-1, Math.floor(sorted.length * 0.95))] : 0;
+      const p95    = sorted.length ? sorted[Math.min(sorted.length-1, Math.floor(sorted.length*0.95))] : 0;
       setText("tileAvg", avg.toFixed(1) + "<small>ms</small>");
       setText("tileP95", p95.toFixed(1) + "<small>ms</small>");
-      // re-render parts that depend on server numbers
-    } catch (e) { /* server may not be up yet */ }
+    } catch {}
   }
 
-  // ── Bindings ────────────────────────────────────────────────────────
+  // ── Corpus islands load ──────────────────────────────────────────────
+  async function loadCorpus() {
+    try {
+      const r = await fetch(API + "/api/corpus/load");
+      const m = await r.json();
+      if (!m.loaded) return;
+      document.querySelectorAll(".island").forEach(node => {
+        const dom  = node.dataset.domain;
+        const docs = (m.documents || []).filter(d => d.domain === dom);
+        node.querySelector("[data-count]").textContent = docs.length + " docs";
+        const ul = node.querySelector("[data-list]");
+        ul.innerHTML = "";
+        for (const d of docs) {
+          const li = document.createElement("li");
+          li.textContent = d.title; li.title = d.preview;
+          ul.appendChild(li);
+        }
+      });
+    } catch {}
+  }
+
+  // ── Bindings ─────────────────────────────────────────────────────────
   document.getElementById("probeBtn").addEventListener("click", () => {
     const v = document.getElementById("probeInput").value.trim();
     if (v) probe(v);
@@ -702,19 +974,34 @@
     }
   });
 
-  // ── Boot ────────────────────────────────────────────────────────────
+  // ── Boot ─────────────────────────────────────────────────────────────
   (async function boot() {
-    // Seed the cache so first paint isn't empty.
     try { await fetch(API + "/api/cache/seed", { method: "POST" }); } catch {}
     await loadCorpus();
     pullStats();
     setInterval(pullStats, 1500);
-
-    // Steady ambient activity: emit a faint hit/miss every 1.4s based on current rate
+    // Seed timeline so seismograph is visible immediately
+    for (let i = 0; i < 40; i++) {
+      const isHit = Math.random() < 0.65;
+      addTimelineSample(isHit ? 3 + Math.random() * 12 : 150 + Math.random() * 400, isHit);
+    }
+    // Ambient simulation: emit hit/miss events proportional to current rate
     setInterval(() => {
-      const total = state.hits + state.misses;
-      const rate = total > 0 ? state.hits / total : 0.5;
-      if (Math.random() < 0.6) emit(Math.random() < rate ? "hit" : "miss");
+      const total  = state.hits + state.misses;
+      const rate   = total > 0 ? state.hits / total : 0.62;
+      if (Math.random() < 0.6) {
+        const isHit = Math.random() < rate;
+        emit(isHit ? "hit" : "miss");
+        if (isHit) {
+          if (Math.random() < 0.25) triggerResonance();
+          addTimelineSample(3 + Math.random() * 15, true);
+        } else {
+          if (Math.random() < 0.35) triggerMissImpact(W * (0.2 + Math.random() * 0.6));
+          addTimelineSample(150 + Math.random() * 500, false);
+        }
+        // Occasional singleflight collapse
+        if (Math.random() < 0.07) triggerSFChain();
+      }
     }, 1400);
   })();
 })();
