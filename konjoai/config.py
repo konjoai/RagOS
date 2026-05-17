@@ -84,6 +84,12 @@ class Settings(BaseSettings):
     cache_redis_namespace: str = "kyro:cache"
     cache_redis_ttl_seconds: int = 0         # 0 disables TTL; >0 sets per-entry expiry
 
+    # Sprint 27 — in-memory TTL expiry.
+    # 0 disables TTL for the memory backend; >0 evicts entries older than N seconds.
+    cache_ttl_seconds: int = 0
+    # Sprint 27 — cache warming API: maximum pairs accepted per POST /cache/warm request.
+    cache_warm_max_batch: int = 500
+
     # Sprint 26 — adaptive threshold engine (P1).
     # When True, per-type thresholds override cache_similarity_threshold for each query.
     cache_adaptive_threshold_enabled: bool = False

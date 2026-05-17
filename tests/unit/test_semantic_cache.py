@@ -207,6 +207,8 @@ def test_enabled_returns_cache_instance():
         mock_cfg.return_value.cache_enabled = True
         mock_cfg.return_value.cache_max_size = 100
         mock_cfg.return_value.cache_similarity_threshold = 0.95
+        mock_cfg.return_value.cache_ttl_seconds = 0
+        mock_cfg.return_value.cache_backend = "memory"
         result = get_semantic_cache()
     assert isinstance(result, SemanticCache)
 
@@ -235,8 +237,9 @@ def test_hit_count_increments(cache):
 
 def test_cache_stats_keys(cache):
     stats = cache.stats()
-    expected_keys = {"size", "max_size", "threshold", "total_hits", "total_misses", "hit_rate"}
-    assert expected_keys == set(stats.keys())
+    # Sprint 27 added ttl_seconds and expired_count
+    assert {"size", "max_size", "threshold", "total_hits", "total_misses", "hit_rate",
+            "ttl_seconds", "expired_count"}.issubset(set(stats.keys()))
 
 
 def test_cache_stats_values(cache):
@@ -355,6 +358,8 @@ def test_reset_cache_reinitialises_singleton():
         mock_cfg.return_value.cache_enabled = True
         mock_cfg.return_value.cache_max_size = 100
         mock_cfg.return_value.cache_similarity_threshold = 0.95
+        mock_cfg.return_value.cache_ttl_seconds = 0
+        mock_cfg.return_value.cache_backend = "memory"
         c1 = get_semantic_cache()
         assert c1 is not None
         _reset_cache()

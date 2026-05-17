@@ -26,7 +26,9 @@
 | **Semantic cache poisoning guard** | Before storing, validate embedding similarity between question and answer exceeds `min_qa_coherence: 0.3`. Rate limit writes per tenant (max 100 stores/min). Anomaly detection: flag responses that are statistical outliers in length or embedding distance. `POST /cache/report_poisoning` endpoint. | ⬜ |
 | **Multi-turn conversation cache** | Cache keyed on `(tenant_id, conversation_id, turn_hash)` where `turn_hash` = rolling hash of last N turns. Separate similarity threshold for multi-turn (0.88 default). `conversation_id` param on lookup/store endpoints. | ⬜ |
 | **Streaming response cache with SSE replay** | Store complete streamed responses as chunked text. On cache hit for a streaming request, replay chunks at the original inter-chunk timing (`replay_delay_ms`). `Content-Type: text/event-stream` on hit. | ⬜ |
-| **Cache warming API** | `POST /cache/warm` accepts `[{question, answer}]` to pre-populate. Batch embedding. Returns `{warmed: n, skipped_duplicates: m}`. Useful for FAQ pre-loading. | ⬜ |
+| **Cache warming API** | `POST /cache/warm` accepts `[{question, answer}]` to pre-populate. Batch embedding. Returns `{warmed: n, skipped_duplicates: m}`. Useful for FAQ pre-loading. | ✅ Sprint 27 |
+| **TTL-based cache expiry** | `cache_ttl_seconds` config, `SemanticCacheEntry.is_expired()`, lazy eviction on lookup, `GET /cache/expired_count`, `DELETE /cache/expired`. | ✅ Sprint 27 |
+| **Query clustering analytics** | k-means++ on L2-normalised embeddings, `GET /cache/clusters?k=N`, returns cluster size/hit-rate/representative questions. | ✅ Sprint 27 |
 
 ### 🟡 P3 — Strategic
 

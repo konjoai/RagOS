@@ -29,6 +29,11 @@ class SemanticCacheEntry:
     response: object              # QueryResponse — typed as object to avoid circular import
     created_at: float = field(default_factory=time.monotonic)
     hit_count: int = 0
+    ttl_seconds: int = 0   # 0 = no expiry for this entry
+
+    def is_expired(self) -> bool:
+        """Return True if this entry's TTL has elapsed."""
+        return bool(self.ttl_seconds > 0 and time.monotonic() - self.created_at > self.ttl_seconds)
 
 
 class SemanticCache:
@@ -39,14 +44,17 @@ class SemanticCache:
         threshold: Cosine similarity threshold for a semantic cache hit (0.0–1.0).
     """
 
-    def __init__(self, max_size: int = 500, threshold: float = 0.95) -> None:
+    def __init__(self, max_size: int = 500, threshold: float = 0.95, ttl_seconds: int = 0) -> None:
         if not 0.0 < threshold <= 1.0:
             raise ValueError(f"threshold must be in (0, 1], got {threshold}")
         if max_size < 1:
             raise ValueError(f"max_size must be >= 1, got {max_size}")
+        if ttl_seconds < 0:
+            raise ValueError(f"ttl_seconds must be >= 0, got {ttl_seconds}")
 
         self._max_size = max_size
         self._threshold = threshold
+        self._ttl_seconds = ttl_seconds   # 0 = no expiry (default)
         self._lock = threading.Lock()
         # Keyed by normalised question string for exact-match fast path
         self._exact: dict[str, SemanticCacheEntry] = {}
@@ -69,17 +77,25 @@ class SemanticCache:
             # 1. Exact-match fast path
             entry = self._exact.get(key)
             if entry is not None:
-                self._lru.move_to_end(key)
-                entry.hit_count += 1
-                self._total_hits += 1
-                logger.debug("cache hit (exact) key=%s hits=%d", key[:40], self._total_hits)
-                return entry.response
+                if entry.is_expired():
+                    # Lazy eviction of the stale entry on lookup
+                    self._lru.pop(key, None)
+                    self._exact.pop(key, None)
+                    logger.debug("cache evict (ttl, exact) key=%s", key[:40])
+                else:
+                    self._lru.move_to_end(key)
+                    entry.hit_count += 1
+                    self._total_hits += 1
+                    logger.debug("cache hit (exact) key=%s hits=%d", key[:40], self._total_hits)
+                    return entry.response
 
-            # 2. Semantic similarity scan
+            # 2. Semantic similarity scan — skip expired entries
             q_norm = self._l2_norm(q_vec)
             best_key: str | None = None
             best_sim: float = -1.0
             for k, e in self._lru.items():
+                if e.is_expired():
+                    continue
                 sim = float(np.dot(q_norm, self._l2_norm(e.question_vec)))
                 if sim > best_sim:
                     best_sim = sim
@@ -113,6 +129,7 @@ class SemanticCache:
             question=question,
             question_vec=q_vec.copy(),   # own the array
             response=response,
+            ttl_seconds=self._ttl_seconds,
         )
         with self._lock:
             if key in self._lru:
@@ -140,19 +157,46 @@ class SemanticCache:
             self._exact.clear()
         logger.info("cache invalidated — cleared %d entries", count)
 
+    def expired_count(self) -> int:
+        """Return the number of entries that have exceeded their TTL.
+
+        Does not remove them; call :meth:`evict_expired` to do that.
+        Returns 0 when ``ttl_seconds == 0`` (no TTL configured).
+        """
+        if self._ttl_seconds == 0:
+            return 0
+        with self._lock:
+            return sum(1 for e in self._lru.values() if e.is_expired())
+
+    def evict_expired(self) -> int:
+        """Remove all entries that have exceeded their TTL. Returns the eviction count."""
+        if self._ttl_seconds == 0:
+            return 0
+        with self._lock:
+            stale = [k for k, e in self._lru.items() if e.is_expired()]
+            for k in stale:
+                self._lru.pop(k, None)
+                self._exact.pop(k, None)
+        if stale:
+            logger.info("cache ttl eviction — removed %d expired entries", len(stale))
+        return len(stale)
+
     def stats(self) -> dict:
         """Return a snapshot of cache statistics."""
         with self._lock:
             size = len(self._lru)
         total = self._total_hits + self._total_misses
         hit_rate = self._total_hits / total if total > 0 else 0.0
+        expired = self.expired_count()
         return {
             "size": size,
             "max_size": self._max_size,
             "threshold": self._threshold,
+            "ttl_seconds": self._ttl_seconds,
             "total_hits": self._total_hits,
             "total_misses": self._total_misses,
             "hit_rate": round(hit_rate, 4),
+            "expired_count": expired,
         }
 
     # ── Internals ─────────────────────────────────────────────────────────────
@@ -227,6 +271,7 @@ def get_semantic_cache() -> object | None:
         _cache = SemanticCache(
             max_size=settings.cache_max_size,
             threshold=settings.cache_similarity_threshold,
+            ttl_seconds=getattr(settings, "cache_ttl_seconds", 0),
         )
         logger.info(
             "in-memory semantic cache initialised — max_size=%d threshold=%.2f",

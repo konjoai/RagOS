@@ -3,6 +3,52 @@
 All notable changes to KonjoOS are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v1.7.0] — Sprint 27: Cache Warming + TTL Expiry + Query Clustering
+
+### Added
+
+**Cache warming API (`POST /cache/warm`)**
+- Accepts a JSON body `{pairs: [{question, answer}]}` (up to `cache_warm_max_batch` pairs, default 500).
+- Each question is embedded using the same production encoder pipeline, so warmed entries participate in semantic similarity matching at the configured threshold.
+- Duplicate normalised keys are skipped without overwriting live entries.
+- Returns `{warmed, skipped_duplicates, skipped_errors, total_submitted}`.
+- `cache_warm_max_batch: int = 500` setting added to `Settings` (env: `CACHE_WARM_MAX_BATCH`).
+- Useful for seeding the cache from historical query logs before go-live, or warming a freshly deployed instance with FAQ answers.
+
+**TTL-based cache expiry**
+- `cache_ttl_seconds: int = 0` setting (env: `CACHE_TTL_SECONDS`). `0` = no expiry (backward compatible).
+- `SemanticCacheEntry.ttl_seconds` field (inherited from cache-level default at `store()` time).
+- `SemanticCacheEntry.is_expired()` — compares `time.monotonic()` against `created_at + ttl_seconds`.
+- Lazy eviction on `lookup()`: expired exact-match and semantic-scan entries are skipped and cleaned up.
+- `SemanticCache.expired_count()` — counts stale entries without removing them. Returns `0` when `ttl_seconds=0`.
+- `SemanticCache.evict_expired()` — bulk eviction, returns count removed. Thread-safe.
+- `GET /cache/expired_count` — returns `{expired_count, ttl_seconds}`.
+- `DELETE /cache/expired` — evicts and returns `{evicted, ttl_seconds}`.
+- `SemanticCache.stats()` now includes `ttl_seconds` and `expired_count`.
+
+**Query clustering analytics (`GET /cache/clusters?k=N`)**
+- Runs k-means++ seeded Lloyd's algorithm (20 iterations, pure numpy) on L2-normalised question embeddings from the live cache.
+- `k` is bounded 2–20 via FastAPI query validation.
+- Requires ≥ 2×k non-expired entries (returns HTTP 422 otherwise).
+- Each cluster: `cluster_id`, `size`, `avg_hit_count`, `avg_centroid_similarity`, up to 5 `representative_questions`.
+- Sorted by cluster size descending.
+- Useful for discovering the top topics the cache is serving without inspecting individual entries.
+
+### Changed
+- `pyproject.toml`, `konjoai/__init__.py`, `helm/kyro/Chart.yaml`, `docs/index.md`, `tests/unit/test_packaging.py`: bumped `1.6.0 → 1.7.0`.
+- `tests/unit/test_semantic_cache.py`: updated stats key assertions and singleton mock stubs to include new TTL fields.
+
+### Tests
+- `tests/unit/test_cache_sprint27.py` — 32 new tests covering all three features:
+  - `TestSemanticCacheEntryTTL`: no-TTL never expires, future TTL not expired, past TTL is expired.
+  - `TestSemanticCacheTTL`: constructor rejects negative TTL, lazy eviction on lookup, expired_count, evict_expired, stats includes new keys.
+  - `TestTTLRoutes`: expired_count returns zero without TTL, reflects stale entries, DELETE evicts, 404 when disabled.
+  - `TestCacheWarmRoute`: stores pairs, skips duplicates, rejects oversized batch, 404 when disabled, validates input.
+  - `TestKmeansCluster` + `TestClusterRoute`: k clusters returned, all entries assigned, representative questions capped, sorted by size, 422 when too few entries.
+- Full regression: `1012 passed, 27 skipped` (was 979 before Sprint 27).
+
+---
+
 ## [v1.6.0] — Sprint 26: Adaptive Threshold + OTel Cache Spans + Per-Tenant Cost Attribution
 
 ### Added
